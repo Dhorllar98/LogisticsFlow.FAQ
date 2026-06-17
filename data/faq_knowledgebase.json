@@ -1,0 +1,200 @@
+[
+  {
+    "Id": "L-001",
+    "Category": "Land",
+    "Question": "What is the difference between LTL and FTL shipping?",
+    "Answer": "LTL (Less Than Truckload) is used for shipments that do not require a full 48- or 53-foot trailer, allowing multiple shippers to share space and cost. FTL (Full Truckload) is dedicated to a single shipment, offering faster transit times as there are no intermediate stops for other cargo."
+  },
+  {
+    "Id": "L-002",
+    "Category": "Land",
+    "Question": "What documents are mandatory for cross-border road transport?",
+    "Answer": "Key documents include the Commercial Invoice, Packing List, and a Inland Bill of Lading. For North American cross-border (US-Mexico-Canada), a BOL must include the SCAC code and proof of customs bond if the cargo is moving 'In-Bond'."
+  },
+  {
+    "Id": "L-003",
+    "Category": "Land",
+    "Question": "How do you handle 'Last-Mile' delivery for heavy machinery?",
+    "Answer": "Last-mile logistics for heavy equipment involves specialized lift-gate services, hiab cranes, or tilt-tray trucks. We conduct site surveys to ensure local zoning permits and offloading capabilities are met before dispatch."
+  },
+  {
+    "Id": "L-004",
+    "Category": "Land",
+    "Question": "Are there specific road regulations for Class 3 Flammable Liquids?",
+    "Answer": "Yes. Drivers must possess an ADR (Europe) or CDL with HazMat endorsement (US). The vehicle must be placarded on all four sides, and the shipment must include a Multi-modal Dangerous Goods Form."
+  },
+  {
+    "Id": "L-005",
+    "Category": "Land",
+    "Question": "What is 'Deadhead' in land logistics?",
+    "Answer": "Deadhead refers to a truck driving with an empty trailer. This is a significant cost driver in logistics; our system optimizes backhaul routes to reduce deadhead miles and lower carbon footprints."
+  },
+  {
+    "Id": "L-006",
+    "Category": "Land",
+    "Question": "How is reefer (refrigerated) transport monitored?",
+    "Answer": "We use telematics for real-time temperature logging. If the internal temperature deviates from the set-point by more than 2°C, an automated alert is triggered to the driver and operations center."
+  },
+  {
+    "Id": "L-007",
+    "Category": "Land",
+    "Question": "What determines road freight rates?",
+    "Answer": "Rates are driven by the National Motor Freight Classification (NMFC) class, weight, distance, and current fuel surcharges (FSC). Seasonality also impacts capacity and pricing."
+  },
+  {
+    "Id": "L-008",
+    "Category": "Land",
+    "Question": "Can I request an 'inside delivery' for road shipments?",
+    "Answer": "Yes, but this is considered an 'accessorial service.' Inside delivery involves moving cargo past the loading dock or front door and typically incurs an additional fee."
+  },
+  {
+    "Id": "L-009",
+    "Category": "Land",
+    "Question": "How do you handle trans-loading in rail-to-road logistics?",
+    "Answer": "We manage the transfer at intermodal terminals using reach stackers to move ISO containers from rail cars to chassis for final delivery."
+  },
+  {
+    "Id": "L-010",
+    "Category": "Land",
+    "Question": "What is the standard liability for road carriers?",
+    "Answer": "Standard liability is typically limited (e.g., $0.50 per pound) under the Carmack Amendment unless higher valuation is declared and additional insurance is purchased."
+  },
+  {
+    "Id": "S-011",
+    "Category": "Sea",
+    "Question": "What is the difference between FCL and LCL ocean freight?",
+    "Answer": "FCL (Full Container Load) means you have exclusive use of a 20ft or 40ft container. LCL (Less than Container Load) involves consolidating your cargo with other shippers at a Container Freight Station (CFS)."
+  },
+  {
+    "Id": "S-012",
+    "Category": "Sea",
+    "Question": "What is a Bill of Lading (B/L) and why is it essential?",
+    "Answer": "The B/L is a legal document between the shipper and carrier acting as a receipt of goods, a contract of carriage, and a document of title required for cargo release at the destination port."
+  },
+  {
+    "Id": "S-013",
+    "Category": "Sea",
+    "Question": "What are 'Demurrage' and 'Detention' fees?",
+    "Answer": "Demurrage is charged by the shipping line when a full container stays in the port past the 'free days.' Detention is charged for the late return of an empty container to the terminal."
+  },
+  {
+    "Id": "S-014",
+    "Category": "Sea",
+    "Question": "What is 'General Average' in maritime law?",
+    "Answer": "General Average is a principle where all stakeholders in a sea venture (shippers and carrier) proportionally share losses resulting from a voluntary sacrifice of part of the ship or cargo to save the rest in an emergency."
+  },
+  {
+    "Id": "S-015",
+    "Category": "Sea",
+    "Question": "How do I calculate CBM (Cubic Meters) for sea freight?",
+    "Answer": "CBM = Length x Width x Height (in meters). For sea freight, the standard ratio is 1,000 kg per 1 CBM; the 'chargeable weight' is whichever is higher."
+  },
+  {
+    "Id": "S-016",
+    "Category": "Sea",
+    "Question": "What are common Incoterms for ocean freight?",
+    "Answer": "FOB (Free on Board), CIF (Cost, Insurance, and Freight), and EXW (Ex Works) are standard. FOB is highly recommended for sea freight as the buyer controls the main leg of transport."
+  },
+  {
+    "Id": "S-017",
+    "Category": "Sea",
+    "Question": "How do you manage 'IMO' dangerous goods at sea?",
+    "Answer": "Dangerous goods must be declared via an IMO Dangerous Goods Declaration. Containers are stowed according to the IMDG Code, ensuring incompatible chemicals are not placed adjacent to each other."
+  },
+  {
+    "Id": "S-018",
+    "Category": "Sea",
+    "Question": "What is the transit time for a Shanghai to Los Angeles (USWC) route?",
+    "Answer": "Standard transit is 14–18 days, but port congestion and blank sailings (cancelled trips) can extend this to 25+ days."
+  },
+  {
+    "Id": "S-019",
+    "Category": "Sea",
+    "Question": "Can I ship oversized cargo that doesn't fit in a container?",
+    "Answer": "Yes, using 'Breakbulk' or 'Flat Rack' containers. For vehicles, we use Ro-Ro (Roll-on/Roll-off) vessels where cargo is driven directly into the ship's hold."
+  },
+  {
+    "Id": "S-020",
+    "Category": "Sea",
+    "Question": "What is a 'Vessel Sharing Agreement' (VSA)?",
+    "Answer": "A VSA is an agreement between shipping lines to share space on each other's vessels to maximize efficiency and port coverage."
+  },
+  {
+    "Id": "A-021",
+    "Category": "Air",
+    "Question": "How is 'Chargeable Weight' calculated for air freight?",
+    "Answer": "Air freight uses a volumetric ratio of 1:6000. Calculation: (Length x Width x Height in cm) / 6000. You are charged based on the higher value between actual weight and volumetric weight."
+  },
+  {
+    "Id": "A-022",
+    "Category": "Air",
+    "Question": "What is an Air Waybill (AWB)?",
+    "Answer": "An AWB is a non-negotiable transport document issued by an airline. Unlike a Sea Bill of Lading, it is a receipt of goods and a contract of carriage but does not serve as a document of title."
+  },
+  {
+    "Id": "A-023",
+    "Category": "Air",
+    "Question": "Are there restrictions on shipping lithium batteries by air?",
+    "Answer": "Yes, strictly regulated by IATA. Batteries must be tested (UN38.3), properly labeled, and often restricted to Cargo Aircraft Only (CAO) depending on their Watt-hour rating."
+  },
+  {
+    "Id": "A-024",
+    "Category": "Air",
+    "Question": "What is 'Unit Load Device' (ULD) in air cargo?",
+    "Answer": "A ULD is a pallet or container used to load luggage, freight, and mail on wide-body aircraft. They are contoured to fit the aircraft fuselage to maximize space."
+  },
+  {
+    "Id": "A-025",
+    "Category": "Air",
+    "Question": "How fast is 'Air Express' vs 'Standard Air Freight'?",
+    "Answer": "Express (Courier) typically takes 1–3 days door-to-door. Standard air freight takes 3–7 days as it involves airport-to-airport transit and consolidation time."
+  },
+  {
+    "Id": "A-026",
+    "Category": "Air",
+    "Question": "Can I ship temperature-sensitive pharmaceuticals by air?",
+    "Answer": "Yes, using 'Active' containers (plug-in electric cooling) or 'Passive' systems (gel packs/dry ice). These follow IATA CEIV Pharma standards for cold-chain integrity."
+  },
+  {
+    "Id": "A-027",
+    "Category": "Air",
+    "Question": "What are TSA 'Known Shipper' requirements?",
+    "Answer": "To ship on passenger aircraft in the US, a company must be a TSA-verified 'Known Shipper.' Otherwise, cargo is restricted to freighter-only aircraft."
+  },
+  {
+    "Id": "A-028",
+    "Category": "Air",
+    "Question": "What is 'Back-to-Back' air freight?",
+    "Answer": "This is a direct shipment where one Master Air Waybill (MAWB) covers one House Air Waybill (HAWB), usually for urgent, non-consolidated cargo."
+  },
+  {
+    "Id": "A-029",
+    "Category": "Air",
+    "Question": "How do you prevent cargo damage from pressure changes?",
+    "Answer": "We advise using pressure-resistant packaging and avoiding airtight seals for liquids, which can expand and burst at high altitudes."
+  },
+  {
+    "Id": "A-030",
+    "Category": "Air",
+    "Question": "Is air freight more expensive than sea freight?",
+    "Answer": "Generally, yes. Air freight is priced by weight/volume and is significantly higher than sea freight. It is best suited for high-value, perishable, or time-critical goods."
+  },
+  {
+    "Id": "G-031",
+    "Category": "General",
+    "Question": "What should I do if my shipment is delayed at customs?",
+    "Answer": "First, check the 'Reason for Hold' in your tracking portal. Common issues include missing commercial invoices or unpaid duties/taxes. Contact our brokerage team for immediate resolution."
+  },
+  {
+    "Id": "G-032",
+    "Category": "General",
+    "Question": "Does standard shipping include cargo insurance?",
+    "Answer": "Carrier liability is limited by law (Hague-Visby for sea, Montreal Convention for air). We strongly recommend 'All-Risk' cargo insurance for full protection against loss or damage."
+  },
+  {
+    "Id": "G-033",
+    "Category": "General",
+    "Question": "How do I track a multi-modal (Sea-to-Road) shipment?",
+    "Answer": "Use your Master Tracking Number. Our system integrates AIS (sea) and GPS (trucking) data to provide a unified view from the port of discharge to your warehouse door."
+  }
+]
