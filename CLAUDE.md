@@ -9,7 +9,10 @@ logic lives in Application Services.
 This phase is a single-call, non-agentic AI feature. Per the Phase-Scoped
 AI Orchestration Exception, Semantic Kernel is NOT used here. AI calls go
 through a direct typed HttpClient client in Infrastructure, wrapped in
-Polly retry with exponential backoff.
+Polly retry with exponential backoff. This exception holds only while FAQ
+remains single-call/non-agentic; any chained or tool-using step (e.g. a
+clarification round-trip before answering) reinstates the Semantic Kernel
+requirement.
 
 ## Phase 1 Constraints
 - No Semantic Kernel, no Presidio, no model failover yet
