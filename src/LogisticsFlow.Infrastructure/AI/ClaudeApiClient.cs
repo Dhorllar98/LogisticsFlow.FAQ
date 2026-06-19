@@ -5,6 +5,7 @@ using LogisticsFlow.Domain.Exceptions;
 using LogisticsFlow.Domain.Interfaces;
 using LogisticsFlow.Infrastructure.Settings;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 
 namespace LogisticsFlow.Infrastructure.AI;
 
@@ -12,11 +13,13 @@ public class ClaudeApiClient : IClaudeApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly ClaudeApiSettings _settings;
+    private readonly ILogger<ClaudeApiClient> _logger;
 
-    public ClaudeApiClient(HttpClient httpClient, IOptions<ClaudeApiSettings> settings)
+    public ClaudeApiClient(HttpClient httpClient, IOptions<ClaudeApiSettings> settings ,ILogger<ClaudeApiClient> logger)
     {
         _httpClient = httpClient;
         _settings = settings.Value;
+        _logger = logger;
     }
 
     public async Task<string> SendMessageAsync(
@@ -42,10 +45,11 @@ public class ClaudeApiClient : IClaudeApiClient
         using var response = await _httpClient.SendAsync(request, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
-        {
-            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            throw new BusinessRuleException($"Claude API call failed with status {(int)response.StatusCode}: {errorBody}");
-        }
+{
+    var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+    _logger.LogError("Claude API call failed with status {StatusCode}: {ErrorBody}", (int)response.StatusCode, errorBody);
+    throw new BusinessRuleException("The AI service is temporarily unavailable. Please try again shortly.");
+}
 
         var parsed = await response.Content.ReadFromJsonAsync<ClaudeResponse>(cancellationToken: cancellationToken);
         var textBlock = parsed?.Content?.FirstOrDefault(c => c.Type == "text");
