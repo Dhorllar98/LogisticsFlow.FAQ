@@ -106,3 +106,9 @@ This module is Phase 1 of four: FAQ → Quotation → Order Tracking →
 Bookings. Later modules will introduce agentic, multi-step AI workflows
 (triggering the Semantic Kernel requirement) and will touch Tier 2/3 data
 (see `data-classification.md`).
+
+4. **Bookings** — agentic, multi-step workflow (introduces Semantic Kernel).
+   Architecture pattern: hierarchical orchestrator coordinating specialist
+   sub-agents (e.g. quote generation, availability check, confirmation),
+   per Anthropic's 2026 Agentic Coding Trends Report (Fountain case study —
+   weeks-to-72-hours staffing time reduction via the same pattern).

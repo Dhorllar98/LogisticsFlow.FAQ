@@ -15,4 +15,10 @@
     <ProjectReference Include="..\LogisticsFlow.Infrastructure\LogisticsFlow.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+  <Content Include="..\..\data\faq_knowledgebase.json" Link="data\faq_knowledgebase.json">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
+
 </Project>
