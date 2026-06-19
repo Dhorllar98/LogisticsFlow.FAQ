@@ -45,11 +45,9 @@ public class GlobalExceptionMiddleware
         context.Response.StatusCode = (int)statusCode;
 
         // Stack traces never reach the client — logged internally above only
-        var body = JsonSerializer.Serialize(new 
-        { 
-            error = message, 
-            statusCode = (int)statusCode 
-        });
+       var body = JsonSerializer.Serialize(
+    new { error = message, statusCode = (int)statusCode },
+    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         await context.Response.WriteAsync(body);
     }

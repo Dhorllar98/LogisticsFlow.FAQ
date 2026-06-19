@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using LogisticsFlow.Application;
 using LogisticsFlow.Infrastructure;
 using LogisticsFlow.API.Middleware;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,8 +12,8 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 // ── ASP.NET Core services ─────────────────────────────────────────────────
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));builder.Services.AddOpenApi();
 
 // ── CORS ──────────────────────────────────────────────────────────────────
 var allowedOrigins = builder.Configuration
