@@ -26,6 +26,23 @@ pattern this codebase will follow as later modules introduce data that
 genuinely requires Tier 2 or Tier 3 handling, rather than retrofitting
 classification logic after the fact.
 
+## Trust vs. Sensitivity: A Note on Untrusted Input
+
+The tier system above classifies data *sensitivity* — what the data is and
+where it may be processed. It does not classify data *trust* — whether the
+data's content could be attacker-controlled and attempt to manipulate
+system behavior (prompt injection). These are orthogonal properties. A
+Tier 1 user query is still untrusted input; a Tier 2 or 3 payload could in
+principle be trusted or untrusted independently of its sensitivity.
+
+This module's only untrusted input is the user's free-text query, handled
+per `architecture.md`'s "Input Handling" section. As later modules
+introduce external API responses (carrier data, tracking webhooks) as
+inputs to agentic reasoning, those payloads will need to be evaluated on
+*both* axes independently — e.g. a tracking webhook may be Tier 2
+sensitive *and* untrusted, requiring both redaction and injection
+resistance, not just one or the other.
+
 ## What Would Change This Classification
 
 If a future enhancement to this module allowed an authenticated user to

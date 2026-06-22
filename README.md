@@ -33,12 +33,23 @@ Full reasoning is in [`docs/architecture.md`](docs/architecture.md).
   it drew from
 - **Confidence-aware escalation**: low-confidence or ungrounded responses
   automatically route to a human support CTA rather than guessing
-- **Data classification by design**: the system explicitly declares and
-  documents the sensitivity tier of every category of data it processes —
-  see [`docs/data-classification.md`](docs/data-classification.md)
 - **Production hardening**: rate limiting, retry with exponential backoff,
   response caching, and global exception handling are implemented from
   day one, not retrofitted later
+
+## Security Considerations
+
+- **Data classification by design**: every category of data this system
+  processes is explicitly classified Tier 1/2/3 before any AI call is
+  made — see [`docs/data-classification.md`](docs/data-classification.md)
+- **Prompt-injection resistance**: user input is structurally separated
+  from the system prompt at the API call boundary, never templated into
+  it — see [`docs/architecture.md`](docs/architecture.md#input-handling-prompt-injection-resistance)
+- **Self-reported AI confidence is never trusted as a security boundary**:
+  the escalation logic treats empty grounding sources as an automatic
+  escalation trigger regardless of the model's stated confidence
+- **Secrets management**: API keys live exclusively in environment
+  variables, never in committed configuration files
 
 ## Tech Stack
 

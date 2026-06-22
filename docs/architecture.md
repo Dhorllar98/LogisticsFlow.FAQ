@@ -55,6 +55,53 @@ add infrastructure cost and latency with no retrieval-quality benefit at
 this scale. Vector search becomes appropriate once the knowledge base grows
 beyond what reliably fits in context, which is a Phase 2+ consideration.
 
+## Input Handling: Prompt-Injection Resistance
+
+The FAQ module accepts one untrusted input: the user's free-text query. It
+is untrusted in the sense that it is attacker-controllable, not because it
+is sensitive data — see `data-classification.md` for why those are
+different axes.
+
+Because this is a single-call, non-agentic flow, the threat surface is
+narrow: there is no tool-calling loop, no agent re-reading external
+content, and no chained reasoning step for an injected instruction to
+hijack. The realistic attack here is a user query that attempts to
+override the system prompt directly — e.g. instructing the model to
+ignore the knowledge base, fabricate a high confidence score, or disclose
+system instructions.
+
+Controls for this phase:
+
+- The user query is always passed as a discrete user-turn message, never
+  concatenated into or templated inside the system prompt string. The
+  system prompt (knowledge base + grounding rules) and the user query are
+  structurally separated at the API call boundary.
+- `FAQRequestValidator` rejects queries exceeding a defined length ceiling
+  and queries containing no alphabetic content, both common
+  injection-padding patterns, before the request reaches the AI client.
+- `ConfidenceScore` and `GroundingSources` are still self-reported by the
+  model and are therefore not trusted as a security boundary — the
+  existing dual-check escalation logic (empty sources forces escalation
+  regardless of score) already provides partial resistance to a
+  successful injection, since a hijacked response with no real grounding
+  sources still escalates rather than returning a fabricated answer with
+  artificially inflated confidence.
+- Claude's own model-level instruction-hierarchy training is the primary
+  defense against the system prompt being overridden by user input; this
+  module does not attempt to reimplement that defense, only to avoid
+  weakening it (e.g. by string-concatenating user input into the system
+  prompt, which would blur the boundary Claude relies on).
+
+**This is not yet the agentic threat model.** Once the Booking module
+introduces Semantic Kernel and tool-calling (per Patch 2.2), a different
+and more serious class of injection becomes live: tool outputs (carrier
+API responses, availability-check results, error logs) becoming inputs to
+further agent reasoning, where injected instructions inside that data
+could be misread as commands. That control — treating all tool output as
+untrusted data, never as instructions — is specified as a standing rule in
+`CLAUDE.md` now, ahead of that module's implementation, rather than
+retrofitted once Booking exists.
+
 ## Semantic Kernel: Phase-Scoped Exception
 
 Per Patch 2.2 of the governing architecture skill, Semantic Kernel is
