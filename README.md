@@ -39,6 +39,11 @@ Full reasoning is in [`docs/architecture.md`](docs/architecture.md).
 
 ## Security Considerations
 
+*The following reflects controls implemented for the current phase
+(Phase 1 — FAQ). Each subsequent phase extends this section as it ships
+— see `docs/security-hardening-checklist.md` for the full, living
+cross-phase enforcement list.*
+
 - **Data classification by design**: every category of data this system
   processes is explicitly classified Tier 1/2/3 before any AI call is
   made — see [`docs/data-classification.md`](docs/data-classification.md)

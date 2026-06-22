@@ -32,7 +32,7 @@ external dependencies — no NuGet packages, no framework references.
 
 ### Infrastructure (`LogisticsFlow.Infrastructure`)
 - `AI/ClaudeApiClient.cs` — typed `HttpClient` wrapper around the Claude API,
-  wrapped in Polly retry with exponential backoff
+  wrapped in a standard resilience handler (retry, circuit breaker, timeout)
 - `Repositories/JsonFAQRepository.cs` — loads `data/faq_knowledgebase.json`
   at startup, cached in memory
 - `Cache/FAQCacheService.cs` — `IMemoryCache`-backed response cache, keyed
@@ -43,6 +43,8 @@ external dependencies — no NuGet packages, no framework references.
 - `Controllers/FAQController.cs` — thin controller, single endpoint:
   `POST /api/faq/ask`
 - `Middleware/GlobalExceptionMiddleware.cs`
+- `Extensions/RateLimitingExtensions.cs`, `Extensions/CorsExtensions.cs` —
+  cross-cutting concern wiring, kept out of `Program.cs`
 - `Settings/ClaudeApiSettings.cs` — bound from environment/configuration
 
 ## AI Integration Approach: RAG-Lite
@@ -76,9 +78,13 @@ Controls for this phase:
   concatenated into or templated inside the system prompt string. The
   system prompt (knowledge base + grounding rules) and the user query are
   structurally separated at the API call boundary.
-- `FAQRequestValidator` rejects queries exceeding a defined length ceiling
-  and queries containing no alphabetic content, both common
-  injection-padding patterns, before the request reaches the AI client.
+- `FAQRequestValidator` rejects queries exceeding 500 characters and
+  queries containing no alphabetic content, both common injection-padding
+  patterns, before the request reaches the AI client. The same length and
+  emptiness checks apply to each entry in conversation history, and history
+  itself is capped at 6 entries — both at the validator and again at the
+  `ConversationSession` entity level — to prevent an oversized or padded
+  history from being used to bypass the per-query length ceiling.
 - `ConfidenceScore` and `GroundingSources` are still self-reported by the
   model and are therefore not trusted as a security boundary — the
   existing dual-check escalation logic (empty sources forces escalation
@@ -132,18 +138,22 @@ unreliable single signal; grounding evidence is the more trustworthy check.
 |---|---|
 | 200 OK | Successful request — check `EscalationBoolean` in the body for business outcome |
 | 400 Bad Request | FluentValidation failure on the incoming request |
-| 422 Unprocessable Entity | System-level failure only (e.g. malformed AI output that fails schema validation) |
-| 429 Too Many Requests | Rate limit exceeded |
-| 500 Internal Server Error | Unhandled exception, caught by global middleware |
+| 422 Unprocessable Entity | Business-rule/AI-output failure — malformed AI JSON, unrecognized category, or AI response failing schema validation. The original client request was valid; the AI's output could not be trusted. |
+| 429 Too Many Requests | Rate limit exceeded (per-IP, see Resilience section) |
+| 503 Service Unavailable | The knowledge base itself failed to load or parse at startup (`KnowledgeBoundaryException`) — a system-level dependency failure, distinct from a single query falling outside the knowledge boundary, which is a normal business outcome handled via `EscalationBoolean`, not an exception |
+| 500 Internal Server Error | Any other unhandled exception, caught by global middleware |
 
 Critically: a business decision to escalate to a human is **not** an error.
 It returns `200 OK` with `EscalationBoolean: true` in the payload. `422` is
-reserved for genuine system failures, never for "the AI didn't know."
+reserved for genuine AI-output failures, `503` for the knowledge base
+itself being unavailable — neither is used for "the AI didn't know."
 
 ## Resilience
 
-- Every Claude API call is wrapped in Polly retry with exponential backoff
-- Rate limiting: 20 requests per IP per minute on `/api/faq/ask`
+- Every Claude API call is wrapped in a standard resilience handler
+  (retry with exponential backoff, circuit breaker, timeout)
+- Rate limiting: 20 requests per IP per minute on `/api/faq/ask`,
+  partitioned per-client-IP — not a shared global limit
 - Repeated FAQ-style queries are served from cache, reducing both latency
   and Claude API cost
 

@@ -1,8 +1,7 @@
-using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
+using LogisticsFlow.API.Extensions;
+using LogisticsFlow.API.Middleware;
 using LogisticsFlow.Application;
 using LogisticsFlow.Infrastructure;
-using LogisticsFlow.API.Middleware;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,33 +12,12 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // ── ASP.NET Core services ─────────────────────────────────────────────────
 builder.Services.AddControllers()
-    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));builder.Services.AddOpenApi();
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddOpenApi();
 
-// ── CORS ──────────────────────────────────────────────────────────────────
-var allowedOrigins = builder.Configuration
-    .GetSection("AllowedOrigins")
-    .Get<string[]>() ?? new[] { "http://localhost:5173" };
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("LogisticsFlowPolicy", policy =>
-        policy.WithOrigins(allowedOrigins)
-              .AllowAnyHeader()
-              .AllowAnyMethod());
-});
-
-// ── Rate limiting: 20 requests per IP per minute ──────────────────────────
-builder.Services.AddRateLimiter(options =>
-{
-    options.AddFixedWindowLimiter("faq-limit", limiter =>
-    {
-        limiter.PermitLimit = 20;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-        limiter.QueueLimit = 0;
-    });
-    options.RejectionStatusCode = 429;
-});
+// ── Cross-cutting concerns ────────────────────────────────────────────────
+builder.Services.AddCorsPolicy(builder.Configuration);
+builder.Services.AddApiRateLimiting();
 
 // ── Build ─────────────────────────────────────────────────────────────────
 var app = builder.Build();
@@ -52,9 +30,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseCors("LogisticsFlowPolicy");
+app.UseCors(CorsExtensions.PolicyName);
 app.UseRateLimiter();
 
-app.MapControllers().RequireRateLimiting("faq-limit");
+app.MapControllers().RequireRateLimiting(RateLimitingExtensions.FaqPolicy);
 
 app.Run();
