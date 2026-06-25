@@ -7,16 +7,6 @@ namespace LogisticsFlow.API.Extensions;
 /// Rate limiting configuration for public API endpoints. Each policy is
 /// partitioned by client IP - never a single shared/global bucket - so
 /// one user's traffic cannot exhaust another user's quota.
-///
-/// RESOLVED (was flagged): FAQ and Quotation now have separate named
-/// policies, applied explicitly per-controller via [EnableRateLimiting]
-/// rather than inherited as a side effect of a single global
-/// .RequireRateLimiting() call on MapControllers(). CLAUDE.md only
-/// specified a limit for /api/faq/ask; QuotationPolicy below uses the
-/// same 20/min default as a starting point since no distinct limit was
-/// ever specified for Quotation - revisit if Quotation's cost profile
-/// (DB lookup + redact + Claude call) warrants a tighter limit than
-/// FAQ's cache-assisted flow.
 /// </summary>
 public static class RateLimitingExtensions
 {
@@ -28,6 +18,27 @@ public static class RateLimitingExtensions
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // RESOLVED (Finding D, found via load test): ASP.NET Core's
+            // rate limiter does NOT set Retry-After automatically on
+            // rejection - it has to be read from the lease metadata and
+            // written explicitly here, or the 429 response goes out with
+            // no Retry-After header at all, which is what the load test
+            // caught. Also writes a small JSON body so a rejected request
+            // doesn't return an empty 429 with no explanation.
+            options.OnRejected = async (context, cancellationToken) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)retryAfter.TotalSeconds).ToString();
+                }
+
+                context.HttpContext.Response.ContentType = "application/json";
+                await context.HttpContext.Response.WriteAsync(
+                    """{"error":"Rate limit exceeded. Please try again shortly."}""",
+                    cancellationToken);
+            };
 
             options.AddPolicy(FaqPolicy, httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
@@ -55,16 +66,6 @@ public static class RateLimitingExtensions
         return services;
     }
 
-    /// <summary>
-    /// RESOLVED (was flagged, found during integration test review): this
-    /// previously read httpContext.Connection.RemoteIpAddress directly,
-    /// which is the proxy's IP - not the real client's - once deployed
-    /// behind Railway/Render's reverse proxy (see docs/deployment.md).
-    /// That would have made the per-IP limiter effectively global in
-    /// production, the exact bug already fixed once in Phase 1 for a
-    /// different reason. X-Forwarded-For is checked first, with the
-    /// direct connection IP as a local-dev fallback.
-    /// </summary>
     private static string ResolveClientIp(HttpContext httpContext)
     {
         var forwardedFor = httpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();

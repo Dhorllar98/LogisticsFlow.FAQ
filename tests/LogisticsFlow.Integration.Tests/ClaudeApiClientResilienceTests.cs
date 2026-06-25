@@ -6,12 +6,6 @@ using Xunit;
 
 namespace LogisticsFlow.Integration.Tests;
 
-/// <summary>
-/// Exercises the REAL typed HttpClient (AddStandardResilienceHandler) via
-/// a fake message handler, not a service-level mock — the point is to
-/// verify the actual resilience pipeline's behavior, which a mocked
-/// IClaudeApiClient would bypass entirely.
-/// </summary>
 public class ClaudeApiClientResilienceTests
 {
     private sealed class FakeHttpMessageHandler : HttpMessageHandler
@@ -38,8 +32,6 @@ public class ClaudeApiClientResilienceTests
     [Fact]
     public async Task SendMessageAsync_TransientServerErrorThenSuccess_RetriesAndEventuallySucceeds()
     {
-        // 503 is in AddStandardResilienceHandler's default transient set
-        // (5xx/408), so this SHOULD be retried automatically.
         var handler = new FakeHttpMessageHandler(new[]
         {
             new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
@@ -61,20 +53,19 @@ public class ClaudeApiClientResilienceTests
     }
 
     /// <summary>
-    /// IMPORTANT FINDING, not a guess: AddStandardResilienceHandler's
-    /// default transient classifier covers 5xx and 408 only — NOT 429.
-    /// This test documents that REAL current behavior (immediate failure
-    /// on the first 429, no retry) rather than the retry behavior I
-    /// originally assumed before seeing your actual Infrastructure code.
-    /// If you want 429 retried/failed-over per CLAUDE.md's "fallback on
-    /// 429 or 5xx" language, that needs an explicit custom resilience
-    /// pipeline — see the note left in Infrastructure/DependencyInjection.cs.
+    /// RESOLVED (Finding B): this test originally documented the OLD
+    /// broken behavior (no retry on 429, CallCount == 1). After fixing
+    /// Infrastructure/DependencyInjection.cs to extend the retry
+    /// predicate to include 429, a real retry now happens - this test
+    /// was stale and asserting the bug as if it were correct behavior.
+    /// Updated to assert the FIXED behavior: at least one retry occurs.
     /// </summary>
     [Fact]
-    public async Task SendMessageAsync_429_DoesNotRetryUnderCurrentDefaultPolicy_FailsOnFirstAttempt()
+    public async Task SendMessageAsync_429_NowRetriesUnderFixedPolicy()
     {
         var handler = new FakeHttpMessageHandler(new[]
         {
+            new HttpResponseMessage((HttpStatusCode)429),
             new HttpResponseMessage((HttpStatusCode)429)
         });
 
@@ -84,7 +75,7 @@ public class ClaudeApiClientResilienceTests
         await Assert.ThrowsAnyAsync<Exception>(() =>
             client.SendMessageAsync("system prompt", new List<ChatMessage> { new() { Role = ChatRole.User, Content = "hi" } }));
 
-        Assert.Equal(1, handler.CallCount); // No retry occurred — documents current real behavior.
+        Assert.True(handler.CallCount >= 2, "Expected at least one retry on a 429 after the fix - got only 1 call.");
     }
 
     [Fact]

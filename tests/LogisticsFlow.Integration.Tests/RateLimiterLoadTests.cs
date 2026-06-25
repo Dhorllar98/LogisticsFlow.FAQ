@@ -1,32 +1,49 @@
 using System.Net;
 using System.Net.Http.Json;
+using LogisticsFlow.Domain.Entities;
+using LogisticsFlow.Domain.Interfaces;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Xunit;
 
 namespace LogisticsFlow.Integration.Tests;
 
 /// <summary>
-/// Closes the Phase 1 security-hardening-checklist.md Section 7 gap
-/// ("Rate limiter load-tested, not just unit-tested"). Covers both
-/// /api/faq/ask and /api/quotation/quote, which now have separate named
-/// policies (faq-limit / quotation-limit) per the resolved "shared
-/// policy" flag.
-///
-/// RESOLVED (was flagged): per-IP partitioning now reads X-Forwarded-For
-/// first (see RateLimitingExtensions.ResolveClientIp), which is also the
-/// real production fix needed once deployed behind Railway/Render's
-/// reverse proxy. These tests set that header explicitly per simulated
-/// client, so the per-IP isolation test is now a genuine assertion, not
-/// one that happened to pass because TestServer gives every client the
-/// same loopback address.
+/// RESOLVED (Finding C): the original version of this test hit the real
+/// Claude API on every request. With a 1-minute fixed window and ~4
+/// seconds per real Claude call, 25 sequential requests took nearly 3
+/// minutes - long enough for the window to reset mid-burst, meaning the
+/// limiter never actually saturated and the 429 assertions failed for
+/// reasons unrelated to the limiter itself. FakeClaudeApiClient below
+/// replaces the real one for these tests only, so requests complete in
+/// milliseconds and the limiter is what's actually being tested.
 /// </summary>
 public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>>
 {
+    private sealed class FakeClaudeApiClient : IClaudeApiClient
+    {
+        public Task<string> SendMessageAsync(
+            string systemPrompt, IReadOnlyList<ChatMessage> conversationHistory,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                """{"answer":"Fake answer for load testing.","category":"General","confidenceScore":0.9,"groundingSources":["L-001"]}""");
+        }
+    }
+
     private readonly WebApplicationFactory<Program> _factory;
 
     public RateLimiterLoadTests(WebApplicationFactory<Program> factory)
     {
-        _factory = factory;
+        _factory = factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.RemoveAll<IClaudeApiClient>();
+                services.AddSingleton<IClaudeApiClient, FakeClaudeApiClient>();
+            });
+        });
     }
 
     private HttpClient CreateClientWithIp(string simulatedIp)
@@ -39,7 +56,6 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
     [Fact]
     public async Task FaqEndpoint_BurstAboveLimit_Returns429WithRetryAfter()
     {
-        // Per CLAUDE.md: 20 requests/IP/minute on /api/faq/ask.
         var client = CreateClientWithIp("203.0.113.10");
         var responses = new List<HttpResponseMessage>();
 
@@ -58,6 +74,12 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
     [Fact]
     public async Task QuotationEndpoint_BurstAboveLimit_Returns429WithRetryAfter()
     {
+        // Note: this endpoint will hit a real (likely failing) DB
+        // connection since no connection string/migration exists yet at
+        // this stage of Phase 2 - that's fine for THIS test, since the
+        // rate limiter runs before the controller's business logic and
+        // will still correctly reject the 21st+ request regardless of
+        // what the controller does afterward.
         var client = CreateClientWithIp("203.0.113.20");
         var responses = new List<HttpResponseMessage>();
 
@@ -77,9 +99,6 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
     [Fact]
     public async Task TwoDifferentIPs_EachGetOwnLimit_NotGloballyShared()
     {
-        // Regression guard for the Phase 1 "per-IP, not global" fix, now
-        // verified through the same X-Forwarded-For path production
-        // traffic will actually use behind a reverse proxy.
         var clientA = CreateClientWithIp("203.0.113.30");
         var clientB = CreateClientWithIp("203.0.113.31");
 
@@ -96,9 +115,6 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
     [Fact]
     public async Task FaqAndQuotation_HaveIndependentLimits_NotASharedBucket()
     {
-        // Confirms the two endpoints no longer share "faq-limit" as a
-        // side effect - exhausting Quotation's policy must not affect
-        // the FAQ endpoint for the same simulated IP.
         var client = CreateClientWithIp("203.0.113.40");
 
         for (var i = 0; i < 20; i++)

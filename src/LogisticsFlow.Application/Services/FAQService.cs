@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using FluentValidation;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
@@ -13,6 +14,14 @@ namespace LogisticsFlow.Application.Services;
 public class FAQService : IFAQService
 {
     private const double EscalationThreshold = 0.70;
+
+    // RESOLVED (Finding A, found in production via real Claude calls
+    // tonight): Claude occasionally wraps JSON output in markdown code
+    // fences (```json ... ```) despite the system prompt explicitly
+    // saying not to. This strips them before parsing. Matches a leading
+    // ```json or ``` and a trailing ```, tolerating surrounding whitespace.
+    private static readonly Regex MarkdownFencePattern =
+        new(@"^\s*```(?:json)?\s*\n?(.*?)\n?\s*```\s*$", RegexOptions.Singleline | RegexOptions.Compiled);
 
     private readonly IFAQRepository _faqRepository;
     private readonly IClaudeApiClient _claudeApiClient;
@@ -41,15 +50,14 @@ public class FAQService : IFAQService
         }
         session.AddMessage(new ChatMessage { Role = ChatRole.User, Content = request.Query });
 
-        // Only standalone questions (no prior history) are cacheable —
-        // a follow-up's correct answer depends on context, so it is
-        // never served from cache.
         var isCacheable = request.History is null || request.History.Count == 0;
         var normalizedQuery = request.Query.Trim().ToLowerInvariant();
 
         string? rawResponse = isCacheable
             ? await _cacheService.GetAsync(normalizedQuery, cancellationToken)
             : null;
+
+        var servedFromCache = rawResponse is not null;
 
         if (rawResponse is null)
         {
@@ -61,18 +69,20 @@ public class FAQService : IFAQService
             var systemPrompt = SystemPrompts.FaqAssistantV1.Replace("{{KNOWLEDGE_BASE}}", knowledgeBaseBlock);
 
             rawResponse = await _claudeApiClient.SendMessageAsync(systemPrompt, session.Messages, cancellationToken);
-
-            if (isCacheable)
-                await _cacheService.SetAsync(normalizedQuery, rawResponse, cancellationToken);
         }
 
-        // Parsing, validation, and escalation logic run identically
-        // regardless of whether rawResponse came from cache or Claude.
+        // RESOLVED (Finding A): strip fences before parsing, regardless of
+        // whether the response came from cache or a fresh Claude call -
+        // a fenced response should never have been cached in the first
+        // place under the old code path, but stripping here is also a
+        // safe no-op against already-clean cached JSON.
+        var cleanedResponse = StripMarkdownFence(rawResponse);
+
         RawAiResponse parsed;
         try
         {
             parsed = JsonSerializer.Deserialize<RawAiResponse>(
-                rawResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                cleanedResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                 ?? throw new JsonException("Deserialized response was null.");
         }
         catch (JsonException ex)
@@ -105,7 +115,25 @@ public class FAQService : IFAQService
             throw new BusinessRuleException($"AI response failed validation: {errors}");
         }
 
+        // RESOLVED (Finding A): cache write moved to AFTER successful
+        // parse + validation, not before. The old code cached rawResponse
+        // immediately after the Claude call, meaning a malformed or
+        // fence-wrapped response got cached and then repeatedly served
+        // and re-failed on every subsequent identical query until the
+        // 24-hour TTL expired. Only ever cache a response we know is
+        // valid. Never re-cache something already served from cache.
+        if (isCacheable && !servedFromCache)
+        {
+            await _cacheService.SetAsync(normalizedQuery, cleanedResponse, cancellationToken);
+        }
+
         return response;
+    }
+
+    private static string StripMarkdownFence(string raw)
+    {
+        var match = MarkdownFencePattern.Match(raw);
+        return match.Success ? match.Groups[1].Value : raw;
     }
 
     private sealed record RawAiResponse(string Answer, string Category, double ConfidenceScore, List<string>? GroundingSources);
