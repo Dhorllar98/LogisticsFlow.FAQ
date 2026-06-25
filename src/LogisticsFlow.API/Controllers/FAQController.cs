@@ -1,12 +1,19 @@
 using FluentValidation;
+using LogisticsFlow.API.Extensions;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LogisticsFlow.API.Controllers;
 
+// MODIFIED FROM YOUR REAL PHASE 1 FILE - only the [EnableRateLimiting]
+// attribute and its using statements were added, to resolve the flagged
+// "Quotation silently inherits FAQ's rate limit policy" issue. Nothing
+// else in this controller changed from what you pasted.
 [ApiController]
 [Route("api/faq")]
+[EnableRateLimiting(RateLimitingExtensions.FaqPolicy)]
 public class FAQController : ControllerBase
 {
     private readonly IFAQService _faqService;
