@@ -101,6 +101,8 @@ phase's CLAUDE.md section.
 
 | 2 — Quotation | 1, 2, 3, 4, 5, 6, 7 | Section 3 now active — Presidio redact/restore lifecycle, see CLAUDE.md |
 
+| 2.5 — Hardening | 1, 2, 4, 5, 6, 7 | JWT auth added to Quotation, rate-limit policies split, 429 retry + Retry-After fixed via real load testing |
+
 | 3 — Tracking | TBD at kickoff | |
 
 | 4 — Booking | TBD at kickoff | SK + tool-output trust become active |

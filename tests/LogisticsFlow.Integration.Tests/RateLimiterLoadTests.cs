@@ -52,7 +52,8 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
     /// </summary>
     private static async Task<HttpClient> WithDevTokenAsync(HttpClient client)
     {
-        var tokenResponse = await client.PostAsync("/api/quotation/dev-token", null);
+        var tokenResponse = await client.PostAsJsonAsync(
+            "/api/quotation/token", new { accountId = "ACC-DEMO-001", secret = "demo-secret-001" });
         var token = (await tokenResponse.Content.ReadFromJsonAsync<DevTokenResponse>())!.Token;
         client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
         return client;
@@ -129,4 +130,6 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
         Assert.Equal((HttpStatusCode)429, quotationResponse.StatusCode);
         Assert.NotEqual((HttpStatusCode)429, faqResponse.StatusCode);
     }
+
+    
 }
