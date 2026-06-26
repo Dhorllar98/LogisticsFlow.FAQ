@@ -148,6 +148,16 @@ It returns `200 OK` with `EscalationBoolean: true` in the payload. `422` is
 reserved for genuine AI-output failures, `503` for the knowledge base
 itself being unavailable — neither is used for "the AI didn't know."
 
+## Authentication (added post-Phase 2 initial merge)
+
+`/api/quotation/quote` requires a JWT Bearer token, obtained via
+`POST /api/quotation/token` with a client's AccountId + secret (BCrypt-
+verified against `Client.SecretHash`). `/api/faq/ask` remains
+unauthenticated, consistent with its anonymous, non-account-specific
+design. Token lifetime is short (15 min default, configurable) -
+no refresh token flow yet; re-authenticating via `/token` is the
+current renewal path.
+
 ## Resilience
 
 - Every Claude API call is wrapped in a standard resilience handler

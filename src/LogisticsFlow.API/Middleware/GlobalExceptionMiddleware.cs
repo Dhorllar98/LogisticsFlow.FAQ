@@ -23,7 +23,7 @@ public class GlobalExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception on {Method} {Path}", 
+            _logger.LogError(ex, "Unhandled exception on {Method} {Path}",
                 context.Request.Method, context.Request.Path);
             await HandleExceptionAsync(context, ex);
         }
@@ -31,13 +31,26 @@ public class GlobalExceptionMiddleware
 
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
+        // IMPORTANT: order matters. C# type-pattern switches match a base
+        // type against derived instances, so RateAgreementNotFoundException
+        // and RedactionFailureException (both : BusinessRuleException) MUST
+        // be listed before the generic BusinessRuleException case below, or
+        // they will silently match that case first and never reach 404.
         var (statusCode, message) = exception switch
         {
-            BusinessRuleException => 
+            RateAgreementNotFoundException =>
+                (HttpStatusCode.NotFound, exception.Message),
+
+            RedactionFailureException =>
+                (HttpStatusCode.UnprocessableEntity, "Quotation could not be processed safely."),
+
+            BusinessRuleException =>
                 (HttpStatusCode.UnprocessableEntity, exception.Message),
-            KnowledgeBoundaryException => 
+
+            KnowledgeBoundaryException =>
                 (HttpStatusCode.ServiceUnavailable, "The knowledge base is currently unavailable. Please try again shortly."),
-            _ => 
+
+            _ =>
                 (HttpStatusCode.InternalServerError, "An unexpected error occurred. Please try again later.")
         };
 
@@ -45,9 +58,9 @@ public class GlobalExceptionMiddleware
         context.Response.StatusCode = (int)statusCode;
 
         // Stack traces never reach the client — logged internally above only
-       var body = JsonSerializer.Serialize(
-    new { error = message, statusCode = (int)statusCode },
-    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        var body = JsonSerializer.Serialize(
+            new { error = message, statusCode = (int)statusCode },
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
         await context.Response.WriteAsync(body);
     }

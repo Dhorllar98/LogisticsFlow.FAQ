@@ -11,9 +11,16 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        // Phase 1 — FAQ
         services.AddScoped<IFAQService, FAQService>();
         services.AddScoped<IValidator<FAQRequestDto>, FAQRequestValidator>();
         services.AddScoped<IValidator<FAQResponseDto>, FAQResponseValidator>();
+
+        // Phase 2 — Quotation
+        services.AddScoped<IQuotationService, QuotationService>();
+        services.AddScoped<IValidator<QuotationRequestDto>, QuotationRequestValidator>();
+        services.AddScoped<IValidator<QuotationResponseDto>, QuotationResponseValidator>();
+
         return services;
     }
 }
