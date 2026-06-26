@@ -5,6 +5,7 @@ using FluentValidation;
 using LogisticsFlow.API.Extensions;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
+using LogisticsFlow.Domain.Interfaces;
 using LogisticsFlow.Infrastructure.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,20 +21,20 @@ namespace LogisticsFlow.API.Controllers;
 public class QuotationController : ControllerBase
 {
     private readonly IQuotationService _quotationService;
+    private readonly IClientRepository _clientRepository;
     private readonly IValidator<QuotationRequestDto> _validator;
     private readonly JwtSettings _jwtSettings;
-    private readonly IWebHostEnvironment _environment;
 
     public QuotationController(
         IQuotationService quotationService,
+        IClientRepository clientRepository,
         IValidator<QuotationRequestDto> validator,
-        IOptions<JwtSettings> jwtSettings,
-        IWebHostEnvironment environment)
+        IOptions<JwtSettings> jwtSettings)
     {
         _quotationService = quotationService;
+        _clientRepository = clientRepository;
         _validator = validator;
         _jwtSettings = jwtSettings.Value;
-        _environment = environment;
     }
 
     [HttpPost("quote")]
@@ -54,22 +55,34 @@ public class QuotationController : ControllerBase
     }
 
     /// <summary>
-    /// DEV-ONLY token issuance for manual smoke testing. There is no real
-    /// login/credential flow yet - this exists solely so the auth gap can
-    /// be closed and smoke-tested this session without scope-creeping into
-    /// building a full user/login system, which belongs to a later phase.
-    /// MUST be removed or properly gated before any real deployment.
+    /// Real client credential flow - replaces the previous open dev-token
+    /// placeholder. A client proves it knows its secret (checked against
+    /// the BCrypt hash stored on the Client entity) before receiving a
+    /// token. There is still no client onboarding/secret-rotation flow
+    /// yet (out of scope for this phase) - this only verifies an
+    /// already-provisioned secret, it does not issue new ones.
     /// </summary>
-    [HttpPost("dev-token")]
+    [HttpPost("token")]
     [AllowAnonymous]
-    public IActionResult GetDevToken()
+    public async Task<IActionResult> GetToken(
+        [FromBody] TokenRequestDto request, CancellationToken cancellationToken)
     {
-        if (!_environment.IsDevelopment())
+        var client = await _clientRepository.GetByAccountIdAsync(request.AccountId, cancellationToken);
+
+        if (client is null || !BCrypt.Net.BCrypt.Verify(request.Secret, client.SecretHash))
         {
-            return NotFound();
+            // Deliberately identical response whether the account doesn't
+            // exist or the secret is wrong - distinguishing the two would
+            // let an attacker enumerate valid AccountIds.
+            return Unauthorized(new { error = "Invalid account or secret." });
         }
 
-        var claims = new[] { new Claim(ClaimTypes.Name, "dev-smoke-test-user") };
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, client.Id.ToString()),
+            new Claim(ClaimTypes.Name, client.AccountId)
+        };
+
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SigningKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
