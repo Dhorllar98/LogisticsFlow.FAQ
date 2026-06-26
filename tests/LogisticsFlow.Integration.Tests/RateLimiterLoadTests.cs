@@ -9,16 +9,6 @@ using Xunit;
 
 namespace LogisticsFlow.Integration.Tests;
 
-/// <summary>
-/// RESOLVED (Finding C): the original version of this test hit the real
-/// Claude API on every request. With a 1-minute fixed window and ~4
-/// seconds per real Claude call, 25 sequential requests took nearly 3
-/// minutes - long enough for the window to reset mid-burst, meaning the
-/// limiter never actually saturated and the 429 assertions failed for
-/// reasons unrelated to the limiter itself. FakeClaudeApiClient below
-/// replaces the real one for these tests only, so requests complete in
-/// milliseconds and the limiter is what's actually being tested.
-/// </summary>
 public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private sealed class FakeClaudeApiClient : IClaudeApiClient
@@ -53,6 +43,23 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
         return client;
     }
 
+    /// <summary>
+    /// RESOLVED: /api/quotation/quote now requires a Bearer token
+    /// (JWT auth added after this test was first written). Fetches a
+    /// dev-only token once per client and attaches it to every
+    /// Quotation request below, so the rate limiter - not auth - is
+    /// what's actually being exercised.
+    /// </summary>
+    private static async Task<HttpClient> WithDevTokenAsync(HttpClient client)
+    {
+        var tokenResponse = await client.PostAsync("/api/quotation/dev-token", null);
+        var token = (await tokenResponse.Content.ReadFromJsonAsync<DevTokenResponse>())!.Token;
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
+        return client;
+    }
+
+    private sealed record DevTokenResponse(string Token);
+
     [Fact]
     public async Task FaqEndpoint_BurstAboveLimit_Returns429WithRetryAfter()
     {
@@ -74,13 +81,7 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
     [Fact]
     public async Task QuotationEndpoint_BurstAboveLimit_Returns429WithRetryAfter()
     {
-        // Note: this endpoint will hit a real (likely failing) DB
-        // connection since no connection string/migration exists yet at
-        // this stage of Phase 2 - that's fine for THIS test, since the
-        // rate limiter runs before the controller's business logic and
-        // will still correctly reject the 21st+ request regardless of
-        // what the controller does afterward.
-        var client = CreateClientWithIp("203.0.113.20");
+        var client = await WithDevTokenAsync(CreateClientWithIp("203.0.113.20"));
         var responses = new List<HttpResponseMessage>();
 
         for (var i = 0; i < 25; i++)
@@ -115,7 +116,7 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
     [Fact]
     public async Task FaqAndQuotation_HaveIndependentLimits_NotASharedBucket()
     {
-        var client = CreateClientWithIp("203.0.113.40");
+        var client = await WithDevTokenAsync(CreateClientWithIp("203.0.113.40"));
 
         for (var i = 0; i < 20; i++)
             await client.PostAsJsonAsync("/api/quotation/quote", new { accountId = $"ACC-{i}" });
