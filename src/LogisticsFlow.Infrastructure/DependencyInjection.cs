@@ -18,6 +18,7 @@ public static class DependencyInjection
     {
         // Phase 1 - FAQ
         services.Configure<ClaudeApiSettings>(configuration.GetSection("ClaudeApi"));
+        services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.AddMemoryCache();
         services.AddSingleton<IFAQCacheService, FAQCacheService>();
         services.AddSingleton<IFAQRepository, JsonFAQRepository>();
@@ -25,12 +26,6 @@ public static class DependencyInjection
         services.AddHttpClient<IClaudeApiClient, ClaudeApiClient>()
             .AddStandardResilienceHandler(options =>
             {
-                // RESOLVED (was flagged): the default transient classifier
-                // behind AddStandardResilienceHandler() covers 5xx/408 only.
-                // CLAUDE.md's "fallback model on 429 or 5xx" requires 429 to
-                // be retried too. We extend the default predicate rather
-                // than replace it, so 5xx/408/timeout/network-failure
-                // handling is unchanged - only 429 is newly added.
                 var defaultPredicate = options.Retry.ShouldHandle;
                 options.Retry.ShouldHandle = async args =>
                 {
