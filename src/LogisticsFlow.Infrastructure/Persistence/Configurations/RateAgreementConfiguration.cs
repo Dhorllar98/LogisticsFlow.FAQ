@@ -39,5 +39,14 @@ public class RateAgreementConfiguration : IEntityTypeConfiguration<RateAgreement
             .WithMany()
             .HasForeignKey(r => r.ClientId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasData(new RateAgreement(
+            id: Guid.Parse("22222222-2222-2222-2222-222222222222"),
+            clientId: Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            originAddress: "123 Dock Rd, Lagos",
+            destinationAddress: "45 Port Ave, Apapa",
+            negotiatedRate: 1500.00m,
+            effectiveFrom: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            specialHandlingInstructions: "Fragile - keep upright"));
     }
 }

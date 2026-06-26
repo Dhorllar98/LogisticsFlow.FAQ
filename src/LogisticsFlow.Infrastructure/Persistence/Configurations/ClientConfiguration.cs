@@ -25,5 +25,13 @@ public class ClientConfiguration : IEntityTypeConfiguration<Client>
 
         builder.Property(c => c.CreatedAtUtc)
             .IsRequired();
+
+        builder.HasData(new
+            {
+                Id = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                AccountId = "ACC-DEMO-001",
+                CompanyName = "Acme Freight Ltd",
+                CreatedAtUtc = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+            });
     }
 }
