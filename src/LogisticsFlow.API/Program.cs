@@ -1,10 +1,11 @@
-using LogisticsFlow.API.Extensions;
+﻿using LogisticsFlow.API.Extensions;
 using LogisticsFlow.API.Middleware;
 using LogisticsFlow.Application;
 using LogisticsFlow.Infrastructure;
 using LogisticsFlow.Infrastructure.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
 using System.Text;
 using System.Text.Json.Serialization;
 
@@ -15,7 +16,11 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers()
     .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
-builder.Services.AddOpenApi();
+
+builder.Services.AddOpenApi(options =>
+{
+    options.AddDocumentTransformer<JwtSecuritySchemeTransformer>();
+});
 
 builder.Services.AddCorsPolicy(builder.Configuration);
 builder.Services.AddApiRateLimiting();
@@ -46,6 +51,7 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();

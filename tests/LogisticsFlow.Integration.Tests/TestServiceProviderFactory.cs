@@ -1,4 +1,4 @@
-using LogisticsFlow.Domain.Interfaces;
+﻿using LogisticsFlow.Domain.Interfaces;
 using LogisticsFlow.Infrastructure.AI;
 using LogisticsFlow.Infrastructure.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -19,7 +19,7 @@ internal static class TestServiceProviderFactory
 
         services.AddLogging();
 
-        services.Configure<ClaudeApiSettings>(options =>
+        services.Configure<LlmProviderSettings>(options =>
         {
             options.ApiKey = "test-key";
             options.Model = "claude-sonnet-4-6";
@@ -29,12 +29,13 @@ internal static class TestServiceProviderFactory
         });
 
         // Identical to the real Infrastructure registration:
-        // services.AddHttpClient<IClaudeApiClient, ClaudeApiClient>().AddStandardResilienceHandler();
-        // — only the primary handler is swapped for the fake one below.
-        services.AddHttpClient<IClaudeApiClient, ClaudeApiClient>()
+        // services.AddHttpClient<ILlmClient, ClaudeApiClient>().AddStandardResilienceHandler();
+        // â€” only the primary handler is swapped for the fake one below.
+        services.AddHttpClient<ILlmClient, ClaudeApiClient>()
             .ConfigurePrimaryHttpMessageHandler(() => fakeHandler)
             .AddStandardResilienceHandler();
 
         return services.BuildServiceProvider();
     }
 }
+

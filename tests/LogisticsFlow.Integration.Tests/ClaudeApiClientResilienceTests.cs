@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Domain.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,7 +43,7 @@ public class ClaudeApiClientResilienceTests
         });
 
         var services = TestServiceProviderFactory.BuildWithFakeHandler(handler);
-        var client = services.GetRequiredService<IClaudeApiClient>();
+        var client = services.GetRequiredService<ILlmClient>();
 
         var result = await client.SendMessageAsync(
             "system prompt", new List<ChatMessage> { new() { Role = ChatRole.User, Content = "hi" } });
@@ -70,7 +70,7 @@ public class ClaudeApiClientResilienceTests
         });
 
         var services = TestServiceProviderFactory.BuildWithFakeHandler(handler);
-        var client = services.GetRequiredService<IClaudeApiClient>();
+        var client = services.GetRequiredService<ILlmClient>();
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
             client.SendMessageAsync("system prompt", new List<ChatMessage> { new() { Role = ChatRole.User, Content = "hi" } }));
@@ -90,7 +90,7 @@ public class ClaudeApiClientResilienceTests
         });
 
         var services = TestServiceProviderFactory.BuildWithFakeHandler(handler);
-        var client = services.GetRequiredService<IClaudeApiClient>();
+        var client = services.GetRequiredService<ILlmClient>();
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
             client.SendMessageAsync("system prompt", new List<ChatMessage> { new() { Role = ChatRole.User, Content = "hi" } }));

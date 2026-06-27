@@ -20,7 +20,7 @@ external dependencies — no NuGet packages, no framework references.
 - `Entities/ConversationSession.cs`, `Entities/ChatMessage.cs` — conversation state
 - `Enums/LogisticCategory.cs` — Land, Sea, Air, General
 - `Exceptions/BusinessRuleException.cs`, `Exceptions/KnowledgeBoundaryException.cs`
-- `Interfaces/IFAQRepository.cs`, `Interfaces/IClaudeApiClient.cs` — contracts only
+- `Interfaces/IFAQRepository.cs`, `Interfaces/ILlmClient.cs` — contracts only
 
 ### Application (`LogisticsFlow.Application`)
 - `DTOs/FAQRequestDto.cs`, `DTOs/FAQResponseDto.cs`
@@ -45,7 +45,7 @@ external dependencies — no NuGet packages, no framework references.
 - `Middleware/GlobalExceptionMiddleware.cs`
 - `Extensions/RateLimitingExtensions.cs`, `Extensions/CorsExtensions.cs` —
   cross-cutting concern wiring, kept out of `Program.cs`
-- `Settings/ClaudeApiSettings.cs` — bound from environment/configuration
+- `Settings/LlmProviderSettings.cs` — bound from environment/configuration
 
 ## AI Integration Approach: RAG-Lite
 
@@ -116,6 +116,7 @@ one user query produces one grounded response, with no chained reasoning
 or tool-calling. Semantic Kernel becomes mandatory starting with any module
 that introduces multi-step or agentic workflows (anticipated at the
 Booking module).
+Phase 2.5 introduced ILlmClient, a provider-agnostic abstraction replacing the Claude-specific interface, enabling future Tier 3 local-model routing (Ollama stub added) without violating this phase's Semantic Kernel exception.
 
 ## Confidence and Escalation Logic
 
@@ -147,6 +148,7 @@ Critically: a business decision to escalate to a human is **not** an error.
 It returns `200 OK` with `EscalationBoolean: true` in the payload. `422` is
 reserved for genuine AI-output failures, `503` for the knowledge base
 itself being unavailable — neither is used for "the AI didn't know."
+Interactive API exploration available at /scalar/v1 in Development (Phase 2.5).
 
 ## Authentication (added post-Phase 2 initial merge)
 

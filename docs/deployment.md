@@ -2,7 +2,7 @@
 
 ## Architecture
 
-- **Backend** (.NET 8 Web API): deployed to Railway or Render
+- **Backend** (.NET 9 Web API): deployed to Railway or Render
 - **Frontend** (React + Vite): deployed to Vercel
 - **Knowledge base**: bundled JSON file, deployed alongside the backend
 
@@ -10,9 +10,10 @@
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Claude API authentication |
+| `LlmProvider__ApiKey` | Claude API authentication |
 | `AllowedOrigins` | Comma-separated list of permitted frontend origins for CORS |
 | `ASPNETCORE_ENVIRONMENT` | `Production` on deployed environments |
+| `ActiveProvider` | Claude or Ollama (provider selection) |
 
 These are set directly in the hosting platform's dashboard — never in a
 committed `appsettings.json`.

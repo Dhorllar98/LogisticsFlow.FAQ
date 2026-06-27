@@ -1,4 +1,4 @@
-using LogisticsFlow.Domain.Interfaces;
+﻿using LogisticsFlow.Domain.Interfaces;
 using LogisticsFlow.Infrastructure.AI;
 using LogisticsFlow.Infrastructure.Cache;
 using LogisticsFlow.Infrastructure.Persistence;
@@ -16,27 +16,36 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
-        // Phase 1 - FAQ
-        services.Configure<ClaudeApiSettings>(configuration.GetSection("ClaudeApi"));
-        services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+        services.Configure<LlmProviderSettings>(configuration.GetSection("LlmProvider"));
         services.AddMemoryCache();
         services.AddSingleton<IFAQCacheService, FAQCacheService>();
         services.AddSingleton<IFAQRepository, JsonFAQRepository>();
 
-        services.AddHttpClient<IClaudeApiClient, ClaudeApiClient>()
-            .AddStandardResilienceHandler(options =>
-            {
-                var defaultPredicate = options.Retry.ShouldHandle;
-                options.Retry.ShouldHandle = async args =>
-                {
-                    if (await defaultPredicate(args))
-                        return true;
+        var activeProvider = configuration["ActiveProvider"] ?? "Claude";
 
-                    return args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests;
-                };
-            });
+        switch (activeProvider)
+        {
+            case "Ollama":
+                services.AddHttpClient<ILlmClient, OllamaApiClient>();
+                break;
 
-        // Phase 2 - Quotation
+            case "Claude":
+            default:
+                services.AddHttpClient<ILlmClient, ClaudeApiClient>()
+                    .AddStandardResilienceHandler(options =>
+                    {
+                        var defaultPredicate = options.Retry.ShouldHandle;
+                        options.Retry.ShouldHandle = async args =>
+                        {
+                            if (await defaultPredicate(args))
+                                return true;
+
+                            return args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests;
+                        };
+                    });
+                break;
+        }
+
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("LogisticsFlowDb")));
 
