@@ -17,6 +17,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<LlmProviderSettings>(configuration.GetSection("LlmProvider"));
+        services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
         services.AddMemoryCache();
         services.AddSingleton<IFAQCacheService, FAQCacheService>();
         services.AddSingleton<IFAQRepository, JsonFAQRepository>();
@@ -56,3 +57,4 @@ public static class DependencyInjection
         return services;
     }
 }
+
