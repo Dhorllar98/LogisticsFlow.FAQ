@@ -1,4 +1,4 @@
-using LogisticsFlow.Domain.Entities;
+﻿using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Infrastructure.Persistence;
 using LogisticsFlow.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
@@ -7,15 +7,6 @@ using Xunit;
 
 namespace LogisticsFlow.Integration.Tests;
 
-/// <summary>
-/// Real DB round-trip tests — first actual use of this previously-empty
-/// test project. Uses SQLite in-memory rather than a real SQL Server
-/// instance for test speed/portability; EF configuration, FK constraints,
-/// and indexes are still genuinely exercised since they're provider-
-/// agnostic in this schema (no SQL-Server-specific types used). If you
-/// want true SQL Server parity in CI, swap UseSqlite here for a
-/// Testcontainers-backed SQL Server instance instead.
-/// </summary>
 public class ClientAndRateAgreementRepositoryTests : IDisposable
 {
     private readonly SqliteConnection _connection;
@@ -43,7 +34,7 @@ public class ClientAndRateAgreementRepositoryTests : IDisposable
     [Fact]
     public async Task ClientRepository_GetByAccountId_ReturnsSeededClient()
     {
-        var client = new Client(Guid.NewGuid(), "ACC-INT-1", "Integration Test Freight Co");
+        var client = new Client(Guid.NewGuid(), "ACC-INT-1", "Integration Test Freight Co", "test-secret-hash-1");
         _db.Clients.Add(client);
         await _db.SaveChangesAsync();
 
@@ -66,7 +57,7 @@ public class ClientAndRateAgreementRepositoryTests : IDisposable
     [Fact]
     public async Task RateAgreementRepository_GetCurrentForClient_ReturnsOnlyEffectiveAgreement()
     {
-        var client = new Client(Guid.NewGuid(), "ACC-INT-2", "Another Freight Co");
+        var client = new Client(Guid.NewGuid(), "ACC-INT-2", "Another Freight Co", "test-secret-hash-2");
         _db.Clients.Add(client);
 
         var expired = new RateAgreement(

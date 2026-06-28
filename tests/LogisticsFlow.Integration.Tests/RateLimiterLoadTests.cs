@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Domain.Interfaces;
@@ -9,9 +9,9 @@ using Xunit;
 
 namespace LogisticsFlow.Integration.Tests;
 
-public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>>
+public class RateLimiterLoadTests : IClassFixture<TestApiFactory>
 {
-    private sealed class FakeClaudeApiClient : IClaudeApiClient
+    private sealed class FakeClaudeApiClient : ILlmClient
     {
         public Task<string> SendMessageAsync(
             string systemPrompt, IReadOnlyList<ChatMessage> conversationHistory,
@@ -24,14 +24,14 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
 
     private readonly WebApplicationFactory<Program> _factory;
 
-    public RateLimiterLoadTests(WebApplicationFactory<Program> factory)
+    public RateLimiterLoadTests(TestApiFactory factory)
     {
         _factory = factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                services.RemoveAll<IClaudeApiClient>();
-                services.AddSingleton<IClaudeApiClient, FakeClaudeApiClient>();
+                services.RemoveAll<ILlmClient>();
+                services.AddSingleton<ILlmClient, FakeClaudeApiClient>();
             });
         });
     }
@@ -133,3 +133,5 @@ public class RateLimiterLoadTests : IClassFixture<WebApplicationFactory<Program>
 
     
 }
+
+

@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentValidation;
 using LogisticsFlow.Application.DTOs;
@@ -24,13 +24,13 @@ public class FAQService : IFAQService
         new(@"^\s*```(?:json)?\s*\n?(.*?)\n?\s*```\s*$", RegexOptions.Singleline | RegexOptions.Compiled);
 
     private readonly IFAQRepository _faqRepository;
-    private readonly IClaudeApiClient _claudeApiClient;
+    private readonly ILlmClient _claudeApiClient;
     private readonly IFAQCacheService _cacheService;
     private readonly IValidator<FAQResponseDto> _responseValidator;
 
     public FAQService(
         IFAQRepository faqRepository,
-        IClaudeApiClient claudeApiClient,
+        ILlmClient claudeApiClient,
         IFAQCacheService cacheService,
         IValidator<FAQResponseDto> responseValidator)
     {

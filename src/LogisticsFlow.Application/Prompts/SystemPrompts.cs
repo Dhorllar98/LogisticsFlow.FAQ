@@ -1,10 +1,10 @@
-namespace LogisticsFlow.Application.Prompts;
+﻿namespace LogisticsFlow.Application.Prompts;
 
 /// <summary>
 /// System prompt templates. Versioned and treated as code per the
 /// governing architecture skill (Section VIII). Conversation history is
-/// NOT embedded here — it is sent via Claude's native multi-turn messages
-/// array (see IClaudeApiClient), which is more correct and cheaper on
+/// NOT embedded here — it is sent via the LLM client's native multi-turn
+/// messages array (see ILlmClient), which is more correct and cheaper on
 /// tokens than flattening history into prompt text.
 /// </summary>
 public static class SystemPrompts

@@ -14,7 +14,7 @@ namespace LogisticsFlow.Application.Tests.Services;
 public class FAQServiceTests
 {
     private readonly Mock<IFAQRepository> _repoMock = new();
-    private readonly Mock<IClaudeApiClient> _claudeMock = new();
+    private readonly Mock<ILlmClient> _claudeMock = new();
     private readonly Mock<IFAQCacheService> _cacheMock = new();
     private readonly Mock<IValidator<FAQResponseDto>> _responseValidatorMock = new();
 
@@ -134,3 +134,4 @@ public class FAQServiceTests
             () => BuildService().AskAsync(new FAQRequestDto { Query = "What is FTL?" }));
     }
 }
+

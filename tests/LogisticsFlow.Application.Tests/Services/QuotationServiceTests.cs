@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using FluentValidation.Results;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Services;
@@ -16,26 +16,23 @@ public class QuotationServiceTests
     private readonly Mock<IClientRepository> _clientRepo = new();
     private readonly Mock<IRateAgreementRepository> _rateRepo = new();
     private readonly Mock<IRedactionService> _redaction = new();
-    private readonly Mock<IClaudeApiClient> _claudeClient = new();
+    private readonly Mock<ILlmClient> _llmClient = new();
     private readonly Mock<IValidator<QuotationResponseDto>> _responseValidator = new();
     private readonly QuotationService _sut;
 
     public QuotationServiceTests()
     {
-        // Default: response always passes validation unless a test
-        // overrides this — keeps the happy-path tests focused on what
-        // they're actually asserting.
         _responseValidator
             .Setup(v => v.ValidateAsync(It.IsAny<QuotationResponseDto>(), default))
             .ReturnsAsync(new ValidationResult());
 
         _sut = new QuotationService(
             _clientRepo.Object, _rateRepo.Object, _redaction.Object,
-            _claudeClient.Object, _responseValidator.Object);
+            _llmClient.Object, _responseValidator.Object);
     }
 
-    private static Client MakeClient(string accountId = "ACC-1", string companyName = "Acme Freight Ltd") =>
-        new(Guid.NewGuid(), accountId, companyName);
+    private static Client MakeClient(string accountId = "ACC-1", string companyName = "Acme Freight Ltd", string secretHash = "test-secret-hash") =>
+        new(Guid.NewGuid(), accountId, companyName, secretHash);
 
     private static RateAgreement MakeRateAgreement(Guid clientId) =>
         new(
@@ -72,12 +69,6 @@ public class QuotationServiceTests
             () => _sut.GetQuotationAsync(request));
     }
 
-    /// <summary>
-    /// MANDATORY per Phase 2 test scope: asserts Tier 2 fields (company
-    /// name, real address, real rate) never appear unredacted in the
-    /// payload sent to the Claude client — only the redacted text should
-    /// reach SendMessageAsync.
-    /// </summary>
     [Fact]
     public async Task GetQuotationAsync_SendsOnlyRedactedPayloadToClaudeClient_NeverRawTier2Fields()
     {
@@ -102,7 +93,7 @@ public class QuotationServiceTests
         string? capturedSystemPrompt = null;
         IReadOnlyList<ChatMessage>? capturedHistory = null;
 
-        _claudeClient
+        _llmClient
             .Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<ChatMessage>>(), default))
             .Callback<string, IReadOnlyList<ChatMessage>, CancellationToken>((prompt, history, _) =>
             {
@@ -129,11 +120,6 @@ public class QuotationServiceTests
         Assert.Contains("[REDACTED_0]", sentContent);
     }
 
-    /// <summary>
-    /// MANDATORY per Phase 2 test scope: a simulated restore failure must
-    /// throw RedactionFailureException, never silently return a partial
-    /// or fabricated response.
-    /// </summary>
     [Fact]
     public async Task GetQuotationAsync_RestoreFailure_ThrowsRedactionFailureException()
     {
@@ -147,7 +133,7 @@ public class QuotationServiceTests
         _redaction.Setup(r => r.RedactAsync(It.IsAny<string>(), default))
             .ReturnsAsync(("redacted text", map));
 
-        _claudeClient
+        _llmClient
             .Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<ChatMessage>>(), default))
             .ReturnsAsync("response with [REDACTED_99] that has no matching map entry");
 
@@ -171,7 +157,7 @@ public class QuotationServiceTests
 
         var map = RedactionMap.Empty;
         _redaction.Setup(r => r.RedactAsync(It.IsAny<string>(), default)).ReturnsAsync(("text", map));
-        _claudeClient
+        _llmClient
             .Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<ChatMessage>>(), default))
             .ReturnsAsync("composed message");
         _redaction.Setup(r => r.RestoreAsync(It.IsAny<string>(), map, default)).ReturnsAsync("composed message");
