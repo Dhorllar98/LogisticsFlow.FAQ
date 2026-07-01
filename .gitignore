@@ -5,3 +5,5 @@ appsettings.Development.json
 .env
 *.user
 .vs/
+.agents/
+AGENTS.md

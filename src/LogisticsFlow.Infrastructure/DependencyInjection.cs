@@ -14,10 +14,17 @@ namespace LogisticsFlow.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services,
+        IConfiguration configuration)
     {
-        services.Configure<LlmProviderSettings>(configuration.GetSection("LlmProvider"));
+        // Bind provider-specific settings — both always registered,
+        // each client consumes only its own typed settings class.
+        // ApiKey lives in environment variables / gitignored dev secrets only.
+        services.Configure<ClaudeSettings>(configuration.GetSection("Providers:Claude"));
+        services.Configure<OllamaSettings>(configuration.GetSection("Providers:Ollama"));
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
+
         services.AddMemoryCache();
         services.AddSingleton<IFAQCacheService, FAQCacheService>();
         services.AddSingleton<IFAQRepository, JsonFAQRepository>();
@@ -35,6 +42,8 @@ public static class DependencyInjection
                 services.AddHttpClient<ILlmClient, ClaudeApiClient>()
                     .AddStandardResilienceHandler(options =>
                     {
+                        // Extends the default transient classifier to include 429
+                        // (rate limit) alongside the default 5xx/408/timeout coverage.
                         var defaultPredicate = options.Retry.ShouldHandle;
                         options.Retry.ShouldHandle = async args =>
                         {
@@ -47,8 +56,11 @@ public static class DependencyInjection
                 break;
         }
 
+        // Npgsql (PostgreSQL) — provider-agnostic EF Core layer.
+        // Connection string supplied entirely via environment variable in
+        // production (ConnectionStrings__LogisticsFlowDb on Railway).
         services.AddDbContext<AppDbContext>(options =>
-            options.UseSqlServer(configuration.GetConnectionString("LogisticsFlowDb")));
+            options.UseNpgsql(configuration.GetConnectionString("LogisticsFlowDb")));
 
         services.AddScoped<IClientRepository, ClientRepository>();
         services.AddScoped<IRateAgreementRepository, RateAgreementRepository>();
@@ -57,4 +69,3 @@ public static class DependencyInjection
         return services;
     }
 }
-

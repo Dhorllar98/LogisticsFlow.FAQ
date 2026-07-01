@@ -5,18 +5,21 @@ using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Domain.Exceptions;
 using LogisticsFlow.Domain.Interfaces;
 using LogisticsFlow.Infrastructure.Settings;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace LogisticsFlow.Infrastructure.AI;
 
 public class ClaudeApiClient : ILlmClient
 {
     private readonly HttpClient _httpClient;
-    private readonly LlmProviderSettings _settings;
+    private readonly ClaudeSettings _settings;
     private readonly ILogger<ClaudeApiClient> _logger;
 
-    public ClaudeApiClient(HttpClient httpClient, IOptions<LlmProviderSettings> settings, ILogger<ClaudeApiClient> logger)
+    public ClaudeApiClient(
+        HttpClient httpClient,
+        IOptions<ClaudeSettings> settings,
+        ILogger<ClaudeApiClient> logger)
     {
         _httpClient = httpClient;
         _settings = settings.Value;
@@ -33,7 +36,9 @@ public class ClaudeApiClient : ILlmClient
             MaxTokens: _settings.MaxTokens,
             System: systemPrompt,
             Messages: conversationHistory
-                .Select(m => new ClaudeMessage(m.Role == ChatRole.User ? "user" : "assistant", m.Content))
+                .Select(m => new ClaudeMessage(
+                    m.Role == ChatRole.User ? "user" : "assistant",
+                    m.Content))
                 .ToList());
 
         using var request = new HttpRequestMessage(HttpMethod.Post, _settings.BaseUrl)
@@ -66,15 +71,21 @@ public class ClaudeApiClient : ILlmClient
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("Claude API call failed with status {StatusCode}: {ErrorBody}", (int)response.StatusCode, errorBody);
-                throw new LlmInvalidResponseException($"The AI provider returned an unexpected status: {(int)response.StatusCode}.");
+                _logger.LogError(
+                    "Claude API call failed with status {StatusCode}: {ErrorBody}",
+                    (int)response.StatusCode,
+                    errorBody);
+                throw new LlmInvalidResponseException(
+                    $"The AI provider returned an unexpected status: {(int)response.StatusCode}.");
             }
 
-            var parsed = await response.Content.ReadFromJsonAsync<ClaudeResponse>(cancellationToken: cancellationToken);
+            var parsed = await response.Content
+                .ReadFromJsonAsync<ClaudeResponse>(cancellationToken: cancellationToken);
             var textBlock = parsed?.Content?.FirstOrDefault(c => c.Type == "text");
 
             if (textBlock is null || string.IsNullOrWhiteSpace(textBlock.Text))
-                throw new LlmInvalidResponseException("Claude API returned a response with no text content.");
+                throw new LlmInvalidResponseException(
+                    "Claude API returned a response with no text content.");
 
             return textBlock.Text;
         }

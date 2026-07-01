@@ -19,7 +19,7 @@ internal static class TestServiceProviderFactory
 
         services.AddLogging();
 
-        services.Configure<LlmProviderSettings>(options =>
+        services.Configure<ClaudeSettings>(options =>
         {
             options.ApiKey = "test-key";
             options.Model = "claude-sonnet-4-6";
@@ -30,7 +30,7 @@ internal static class TestServiceProviderFactory
 
         // Identical to the real Infrastructure registration:
         // services.AddHttpClient<ILlmClient, ClaudeApiClient>().AddStandardResilienceHandler();
-        // â€” only the primary handler is swapped for the fake one below.
+        // — only the primary handler is swapped for the fake one below.
         services.AddHttpClient<ILlmClient, ClaudeApiClient>()
             .ConfigurePrimaryHttpMessageHandler(() => fakeHandler)
             .AddStandardResilienceHandler();
@@ -38,4 +38,3 @@ internal static class TestServiceProviderFactory
         return services.BuildServiceProvider();
     }
 }
-
