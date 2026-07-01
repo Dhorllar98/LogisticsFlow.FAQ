@@ -57,12 +57,14 @@ var app = builder.Build();
 // Development: migrations are run manually via dotnet ef.
 // Tests: never run migrations — they do not exercise the database layer
 // and the local SQL Server connection string is invalid for Npgsql.
-if (app.Environment.IsProduction())
-{
-    using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
+
+//Commenting out this part for now because i'm skipping DB.
+//if (app.Environment.IsProduction())
+//{
+   // using var scope = app.Services.CreateScope();
+    //var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    //db.Database.Migrate();
+//}
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
