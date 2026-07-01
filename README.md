@@ -11,6 +11,7 @@ and a provider-agnostic model interface introduced in Phase 2.5.
 
 - API base URL: https://logisticsflow-api.onrender.com
 - API explorer: https://logisticsflow-api.onrender.com/scalar/v1
+- Frontend: https://logistics-flow-faq.vercel.app
 - Verified endpoint: `POST /api/faq/ask`
 
 This public demo runs on Render's free tier with no keep-alive. The first
