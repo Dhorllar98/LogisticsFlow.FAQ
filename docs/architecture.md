@@ -1,183 +1,187 @@
 # Architecture — LogisticsFlow FAQ Assistant
 
 ## Overview
-This service is a knowledge-grounded FAQ assistant for multimodal logistics
-operations (Land, Sea, Air). It is built on Clean Architecture principles
-with a strict inward-to-outward dependency chain, and uses a RAG-lite
-pattern — direct knowledge base injection into the LLM context — rather
-than a full vector database, appropriate for a curated, finite knowledge
-set of this size.
+
+LogisticsFlow is a knowledge-grounded AI assistant for multimodal logistics
+operations across Land, Sea, and Air freight.
+
+The current public deployment exposes the Phase 1 FAQ workflow. The broader
+project includes database-backed Quotation work and a Phase 2.5
+provider-agnostic AI abstraction. The public Render demo runs without a
+database dependency.
 
 ## Dependency Chain
 
 Domain → Application → Infrastructure → Presentation
 
-Each layer depends only on the layer(s) inward of it. Domain has zero
-external dependencies — no NuGet packages, no framework references.
+Each layer depends only on the layer inward from it. The Domain layer has
+no framework dependencies.
 
-### Domain (`LogisticsFlow.Domain`)
-- `Entities/FAQEntry.cs` — core knowledge base record (Id, Category, Question, Answer)
-- `Entities/ConversationSession.cs`, `Entities/ChatMessage.cs` — conversation state
-- `Enums/LogisticCategory.cs` — Land, Sea, Air, General
-- `Exceptions/BusinessRuleException.cs`, `Exceptions/KnowledgeBoundaryException.cs`
-- `Interfaces/IFAQRepository.cs`, `Interfaces/ILlmClient.cs` — contracts only
+## Domain Layer
 
-### Application (`LogisticsFlow.Application`)
-- `DTOs/FAQRequestDto.cs`, `DTOs/FAQResponseDto.cs`
-- `Validators/FAQRequestValidator.cs`, `Validators/FAQResponseValidator.cs` (FluentValidation)
-- `Services/FAQService.cs` — orchestrates the request: load knowledge base,
-  construct prompt, call AI client, validate and shape the response
-- `Prompts/SystemPrompts.cs` — versioned system prompt as a string constant
-- `Interfaces/IFAQService.cs`
+`LogisticsFlow.Domain` contains:
 
-### Infrastructure (`LogisticsFlow.Infrastructure`)
-- `AI/ClaudeApiClient.cs` — typed `HttpClient` wrapper around the Claude API,
-  wrapped in a standard resilience handler (retry, circuit breaker, timeout)
-- `Repositories/JsonFAQRepository.cs` — loads `data/faq_knowledgebase.json`
-  at startup, cached in memory
-- `Cache/FAQCacheService.cs` — `IMemoryCache`-backed response cache, keyed
-  on normalized query, 24-hour TTL
-- `DependencyInjection.cs` — explicit service registration
+- `FAQEntry`, conversation entities, logistics category enums
+- Business exceptions: `BusinessRuleException`, `KnowledgeBoundaryException`
+- Repository and AI client contracts: `IFAQRepository`, `ILlmClient`
 
-### Presentation (`LogisticsFlow.API`)
-- `Controllers/FAQController.cs` — thin controller, single endpoint:
-  `POST /api/faq/ask`
-- `Middleware/GlobalExceptionMiddleware.cs`
-- `Extensions/RateLimitingExtensions.cs`, `Extensions/CorsExtensions.cs` —
-  cross-cutting concern wiring, kept out of `Program.cs`
-- `Settings/LlmProviderSettings.cs` — bound from environment/configuration
+Domain defines contracts. It has no knowledge of ASP.NET Core, Claude,
+Render, databases, or external infrastructure.
 
-## AI Integration Approach: RAG-Lite
+## Application Layer
 
-Rather than chunking, embedding, and vector-searching the knowledge base,
-the full curated FAQ set (33 entries as of Phase 1) is injected directly
-into the system prompt on every request. This is appropriate because the
-knowledge base is small, finite, and fully curated — a vector store would
-add infrastructure cost and latency with no retrieval-quality benefit at
-this scale. Vector search becomes appropriate once the knowledge base grows
-beyond what reliably fits in context, which is a Phase 2+ consideration.
+`LogisticsFlow.Application` contains:
 
-## Input Handling: Prompt-Injection Resistance
+- Request and response DTOs
+- FluentValidation validators
+- FAQ orchestration service (`FAQService`)
+- Prompt construction (`SystemPrompts`)
+- Response-shaping and escalation logic
+- Service interfaces (`IFAQService`)
 
-The FAQ module accepts one untrusted input: the user's free-text query. It
-is untrusted in the sense that it is attacker-controllable, not because it
-is sensitive data — see `data-classification.md` for why those are
-different axes.
+The FAQ service loads the knowledge base, sends the request through the
+AI provider abstraction, validates the response, and applies escalation
+rules.
 
-Because this is a single-call, non-agentic flow, the threat surface is
-narrow: there is no tool-calling loop, no agent re-reading external
-content, and no chained reasoning step for an injected instruction to
-hijack. The realistic attack here is a user query that attempts to
-override the system prompt directly — e.g. instructing the model to
-ignore the knowledge base, fabricate a high confidence score, or disclose
-system instructions.
+## Infrastructure Layer
 
-Controls for this phase:
+`LogisticsFlow.Infrastructure` contains:
 
-- The user query is always passed as a discrete user-turn message, never
-  concatenated into or templated inside the system prompt string. The
-  system prompt (knowledge base + grounding rules) and the user query are
-  structurally separated at the API call boundary.
-- `FAQRequestValidator` rejects queries exceeding 500 characters and
-  queries containing no alphabetic content, both common injection-padding
-  patterns, before the request reaches the AI client. The same length and
-  emptiness checks apply to each entry in conversation history, and history
-  itself is capped at 6 entries — both at the validator and again at the
-  `ConversationSession` entity level — to prevent an oversized or padded
-  history from being used to bypass the per-query length ceiling.
-- `ConfidenceScore` and `GroundingSources` are still self-reported by the
-  model and are therefore not trusted as a security boundary — the
-  existing dual-check escalation logic (empty sources forces escalation
-  regardless of score) already provides partial resistance to a
-  successful injection, since a hijacked response with no real grounding
-  sources still escalates rather than returning a fabricated answer with
-  artificially inflated confidence.
-- Claude's own model-level instruction-hierarchy training is the primary
-  defense against the system prompt being overridden by user input; this
-  module does not attempt to reimplement that defense, only to avoid
-  weakening it (e.g. by string-concatenating user input into the system
-  prompt, which would blur the boundary Claude relies on).
+- `ClaudeApiClient` — typed `HttpClient` implementation of `ILlmClient`
+- `OllamaApiClient` — stub implementation for future Tier 3 local routing
+- `JsonFAQRepository` — loads `data/faq_knowledgebase.json` at startup
+- `FAQCacheService` — `IMemoryCache`-backed response cache
+- `AppDbContext` — EF Core context for database-backed modules
+- `ClaudeSettings`, `OllamaSettings` — typed settings classes bound per provider
+- Resilience configuration via `AddStandardResilienceHandler`
+- DI registration
 
-**This is not yet the agentic threat model.** Once the Booking module
-introduces Semantic Kernel and tool-calling (per Patch 2.2), a different
-and more serious class of injection becomes live: tool outputs (carrier
-API responses, availability-check results, error logs) becoming inputs to
-further agent reasoning, where injected instructions inside that data
-could be misread as commands. That control — treating all tool output as
-untrusted data, never as instructions — is specified as a standing rule in
-`CLAUDE.md` now, ahead of that module's implementation, rather than
-retrofitted once Booking exists.
+Phase 2.5 replaced the single `LlmProviderSettings` class with typed
+`ClaudeSettings` and `OllamaSettings`. `ClaudeSettings` carries `ApiKey`,
+`BaseUrl`, `Model`, `AnthropicVersion`, and `MaxTokens`. `OllamaSettings`
+has no `ApiKey` field — the absence is intentional. Provider-agnosticism
+lives at the `ILlmClient` contract layer; the settings layer is
+deliberately provider-specific because pretending all providers share an
+auth shape is inaccurate.
 
-## Semantic Kernel: Phase-Scoped Exception
+## Presentation Layer
 
-Per Patch 2.2 of the governing architecture skill, Semantic Kernel is
-**not used** in this phase. The FAQ flow is a single, non-agentic AI call —
-one user query produces one grounded response, with no chained reasoning
-or tool-calling. Semantic Kernel becomes mandatory starting with any module
-that introduces multi-step or agentic workflows (anticipated at the
-Booking module).
-Phase 2.5 introduced ILlmClient, a provider-agnostic abstraction replacing the Claude-specific interface, enabling future Tier 3 local-model routing (Ollama stub added) without violating this phase's Semantic Kernel exception.
+`LogisticsFlow.API` contains:
+
+- `FAQController` — single endpoint: `POST /api/faq/ask`
+- `QuotationController` — database-backed; not part of current public demo
+- `GlobalExceptionMiddleware`
+- `CorsExtensions`, `RateLimitingExtensions`
+- JWT Bearer configuration
+- Scalar / OpenAPI wiring
+
+Scalar is exposed unconditionally — this is a recruiter-facing demo.
+
+## Middleware Order
+
+GlobalExceptionMiddleware
+→ Scalar / OpenAPI
+→ HTTPS Redirection
+→ CORS
+→ Rate Limiting        ← before auth, intentional
+→ Authentication
+→ Authorization
+→ Controllers
+
+Rate limiting is placed before authentication so unauthenticated requests
+are throttled at the network boundary rather than reaching the identity
+pipeline first.
+
+## RAG-Lite Approach
+
+The FAQ workflow injects the curated 33-entry knowledge base directly into
+the model context. A vector database would add retrieval latency and
+operational cost without improving retrieval quality at this scale. Vector
+search becomes appropriate when the knowledge base grows beyond what
+reliably fits in context, or when retrieval needs become more dynamic.
+
+## Input Handling and Prompt-Injection Resistance
+
+The FAQ module accepts one untrusted input: the user's free-text query.
+
+Controls:
+
+- User query is passed as a user-turn message, never interpolated into the system prompt
+- System prompt and user query are structurally separated at the API call boundary
+- `FAQRequestValidator` enforces a 500-character ceiling and rejects empty queries
+- Conversation history is bounded at 6 entries at both the validator and entity level
+- Model confidence is not trusted as a security boundary
+- Empty `groundingSources` forces escalation regardless of score
+
+This is a non-agentic workflow. There is no tool-calling loop and no
+external tool output being reinterpreted as instructions. Those risks
+become active in the Booking phase.
+
+## Semantic Kernel Position
+
+Semantic Kernel is intentionally not used for the FAQ phase. The FAQ
+workflow is a single-call, non-agentic flow. Per the Phase-Scoped
+AI Orchestration Exception declared in `CLAUDE.md`, Semantic Kernel
+becomes mandatory when the system introduces multi-step workflows,
+tool use, or agentic orchestration — anticipated at the Booking phase.
 
 ## Confidence and Escalation Logic
 
-Every response includes a `ConfidenceScore` (0.0–1.0) self-assessed by the
-model, plus a list of `GroundingSources` citing which knowledge base
-entries were used.
+Every FAQ response includes `confidenceScore`, `groundingSources`, and
+`escalationBoolean`.
 
-- `EscalationBoolean` is set to `true` when `ConfidenceScore < 0.70`
-- `EscalationBoolean` is **also** forced to `true` whenever
-  `GroundingSources` is empty, regardless of the reported confidence score —
-  an empty source list means the model answered outside the knowledge
-  boundary, which the self-reported score alone cannot be trusted to flag
+- `escalationBoolean` is `true` when `confidenceScore < 0.70`
+- `escalationBoolean` is also forced to `true` when `groundingSources` is empty
 
-This dual check exists because LLM self-assessed confidence is an
-unreliable single signal; grounding evidence is the more trustworthy check.
+The second rule is deliberate. A model can overstate confidence. An answer
+with no grounding sources is outside the knowledge boundary and must
+escalate regardless of the reported score.
+
+A business escalation is not an HTTP error — it returns `200 OK` with
+`escalationBoolean: true`.
 
 ## HTTP Response Contract
 
-| Status | Meaning in this service |
+| Status | Meaning |
 |---|---|
-| 200 OK | Successful request — check `EscalationBoolean` in the body for business outcome |
-| 400 Bad Request | FluentValidation failure on the incoming request |
-| 422 Unprocessable Entity | Business-rule/AI-output failure — malformed AI JSON, unrecognized category, or AI response failing schema validation. The original client request was valid; the AI's output could not be trusted. |
-| 429 Too Many Requests | Rate limit exceeded (per-IP, see Resilience section) |
-| 503 Service Unavailable | The knowledge base itself failed to load or parse at startup (`KnowledgeBoundaryException`) — a system-level dependency failure, distinct from a single query falling outside the knowledge boundary, which is a normal business outcome handled via `EscalationBoolean`, not an exception |
-| 500 Internal Server Error | Any other unhandled exception, caught by global middleware |
+| 200 OK | Successful request; check `escalationBoolean` for business outcome |
+| 400 Bad Request | Request validation failed |
+| 422 Unprocessable Entity | AI output or business-rule validation failed |
+| 429 Too Many Requests | Rate limit exceeded |
+| 503 Service Unavailable | Required system dependency unavailable at startup |
+| 500 Internal Server Error | Unhandled exception caught by global middleware |
 
-Critically: a business decision to escalate to a human is **not** an error.
-It returns `200 OK` with `EscalationBoolean: true` in the payload. `422` is
-reserved for genuine AI-output failures, `503` for the knowledge base
-itself being unavailable — neither is used for "the AI didn't know."
-Interactive API exploration available at /scalar/v1 in Development (Phase 2.5).
+## Authentication
 
-## Authentication (added post-Phase 2 initial merge)
+`POST /api/faq/ask` is unauthenticated — it handles anonymous Tier 1
+questions. Quotation endpoints require JWT Bearer authentication and
+database-backed client configuration.
 
-`/api/quotation/quote` requires a JWT Bearer token, obtained via
-`POST /api/quotation/token` with a client's AccountId + secret (BCrypt-
-verified against `Client.SecretHash`). `/api/faq/ask` remains
-unauthenticated, consistent with its anonymous, non-account-specific
-design. Token lifetime is short (15 min default, configurable) -
-no refresh token flow yet; re-authenticating via `/token` is the
-current renewal path.
+## Deployment Boundary
+
+The current Render deployment is FAQ-only:
+
+- No database required for FAQ
+- Startup migrations are commented out for the public demo path
+- Bundled JSON knowledge base is deployed with the API
+- Scalar is available publicly for inspection and testing
 
 ## Resilience
 
-- Every Claude API call is wrapped in a standard resilience handler
-  (retry with exponential backoff, circuit breaker, timeout)
-- Rate limiting: 20 requests per IP per minute on `/api/faq/ask`,
-  partitioned per-client-IP — not a shared global limit
-- Repeated FAQ-style queries are served from cache, reducing both latency
-  and Claude API cost
+- Retry with exponential backoff on every AI call
+- 429 included in the retry predicate alongside default 5xx/408/timeout coverage
+- Timeout handling
+- Circuit-breaker behavior
+- Rate limiting with per-IP partitioning
+- Response caching for repeated FAQ-style questions
+- Global exception handling
 
 ## Roadmap
 
-This module is Phase 1 of four: FAQ → Quotation → Order Tracking →
-Bookings. Later modules will introduce agentic, multi-step AI workflows
-(triggering the Semantic Kernel requirement) and will touch Tier 2/3 data
-(see `data-classification.md`).
-
-4. **Bookings** — agentic, multi-step workflow (introduces Semantic Kernel).
-   Architecture pattern: hierarchical orchestrator coordinating specialist
-   sub-agents (e.g. quote generation, availability check, confirmation),
-   per Anthropic's 2026 Agentic Coding Trends Report (Fountain case study —
-   weeks-to-72-hours staffing time reduction via the same pattern).
+| Phase | Description | Status |
+|---|---|---|
+| Phase 1: FAQ | Knowledge-grounded logistics FAQ | Live on Render |
+| Phase 2: Quotation | Database-backed quotation workflow | Built, not in public demo |
+| Phase 2.5: Provider abstraction | Typed provider settings, `ILlmClient` abstraction | Completed |
+| Phase 3: Tracking | Shipment tracking workflow | Planned |
+| Phase 4: Booking | Agentic booking workflow with Semantic Kernel | Planned |

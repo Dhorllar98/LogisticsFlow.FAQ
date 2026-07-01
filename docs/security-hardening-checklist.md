@@ -1,109 +1,75 @@
-﻿
-# Security Hardening Checklist — LogisticsFlow AI Suite
+﻿# Security Hardening Checklist — LogisticsFlow AI Suite
 
-This is a living, project-wide checklist. Every item, once added, applies
-
-to ALL current and future phases unless explicitly superseded. New phases
-
-ADD rows; they do not replace or scope-limit prior rows. Before writing
-
-code for any phase, confirm every applicable item below against the
-
-phase's CLAUDE.md section.
+This is a living, project-wide checklist. Every item applies to all
+current and future phases unless explicitly superseded. New phases add
+rows — they do not replace or narrow prior security rules.
 
 ## 1. Input Validation
 
 - [ ] Every DTO has a FluentValidation validator before reaching a service
-
 - [ ] Free-text fields have explicit length ceilings
-
-- [ ] Structured fields use allow-lists/enums, never loose string trust
-
-- [ ] Failed validation rejects (400) — never silently coerces
+- [ ] Structured fields use allow-lists or enums, never loose string trust
+- [ ] Failed validation returns 400 and is never silently coerced
 
 ## 2. AI Call Boundary
 
-- [ ] Every Claude response is schema-validated before use; malformed = 422
+- [ ] Every AI response is schema-validated before use
+- [ ] Malformed AI output returns 422, not a guessed response
+- [ ] Self-reported model claims are never trusted as a security boundary
+- [ ] `max_tokens` is set explicitly on every AI call
+- [ ] Every AI call has retry, timeout, and circuit-breaker behavior
+- [ ] 429 is included in the retry predicate alongside default transient failures
+- [ ] Every outbound AI `HttpClient` call has an explicit timeout
 
-- [ ] Self-reported model claims (confidence, "this is redacted") are
+## 3. Sensitive Data Lifecycle
 
-      never trusted as a security boundary
+Active once a module handles Tier 2 or Tier 3 data.
 
-- [ ] max_tokens set explicitly on every call
-
-- [ ] Every AI call wrapped in Polly retry + circuit breaker
-
-- [ ] Explicit timeout on every HttpClient call
-
-## 3. Sensitive Data Lifecycle (Tier 2/3 — active from Phase 2 onward)
-
-- [ ] Tier 2/3 fields enumerated explicitly per module in that phase's
-
-      CLAUDE.md section before coding starts
-
-- [ ] Redaction map exists only for request lifetime — never cached,
-
-      logged, or persisted (see CLAUDE.md -> Redaction/Restore Lifecycle)
-
-- [ ] Restore failure -> hard 422, never a partial/leaked response
-
-- [ ] Audit every log/cache/external-call site for pre-redaction exposure
+- [ ] Tier 2 and Tier 3 fields enumerated explicitly per module before coding starts
+- [ ] Redaction map exists only for request lifetime — never cached, logged, or persisted
+- [ ] Restore failure returns hard 422, never a partial or leaked response
+- [ ] Logs, cache keys, external calls, and exception paths audited for pre-redaction exposure
 
 ## 4. Exception Handling
 
-- [ ] Global middleware catches everything — no manual 500s in controllers
+- [ ] Global middleware catches unhandled exceptions
+- [ ] Controllers do not manually construct generic 500 responses
+- [ ] Domain exceptions map to deliberate status codes
+- [ ] Logged exception detail respects redaction rules
+- [ ] Tier 2 or Tier 3 content never appears in stack traces or structured logs
 
-- [ ] Domain exceptions map to deliberate status codes, not generic catch-all
+## 5. Rate Limiting and Abuse Prevention
 
-- [ ] Logged exception detail still respects redaction rules (no Tier 2/3
+- [ ] Per-IP rate limiting applied to public endpoints
+- [ ] Rate limiter placed before authentication middleware
+- [ ] Endpoint limits tuned by cost and sensitivity
+- [ ] Per-account limiting added once account/client identity exists
+- [ ] 429 responses tested, including `Retry-After` header presence
 
-      in stack traces)
+## 6. Logging and Observability
 
-## 5. Rate Limiting & Abuse Prevention
-
-- [ ] Per-IP limiting on every public endpoint, tuned per endpoint
-
-      cost/sensitivity
-
-- [ ] Per-account limiting once any account/client identification exists
-
-## 6. Logging & Observability
-
-- [ ] Structured logging on every service method entry/exit
-
-- [ ] AI calls log token count, latency, failover events
-
-- [ ] Redaction/restore outcomes logged (success/fail only — never content)
+- [ ] Structured logging exists on important service boundaries
+- [ ] AI calls log latency and failure mode
+- [ ] AI calls do not log sensitive prompt or response content
+- [ ] Redaction and restore outcomes logged as success/failure only
+- [ ] Provider selection and failover events are observable
 
 ## 7. Pre-Deployment Checklist
 
-- [ ] Integration tests simulate AI timeout / 429 / malformed JSON
-
-- [ ] Test asserts Tier 2/3 fields never appear unredacted in outbound
-
-      payloads
-
-- [ ] Test asserts broken redaction map -> 422, not leaked partial response
-
-- [ ] Rate limiter load-tested, not just unit-tested
-
-- [ ] GitLeaks wired into pre-commit hook, not manual habit
-
----
+- [ ] Integration tests simulate AI timeout
+- [ ] Integration tests simulate 429 handling
+- [ ] Integration tests simulate malformed AI JSON
+- [ ] Tests assert Tier 2/3 fields never appear unredacted in outbound payloads
+- [ ] Tests assert broken redaction maps return 422
+- [ ] Rate limiter is load-tested, not only unit-tested
+- [ ] GitLeaks or equivalent secret scanning run before pushing
 
 ## Phase Status
 
-| Phase | Sections Active | Notes |
-
-|---|---|---|
-
-| 1 — FAQ | 1, 2, 4, 5, 6, 7 | No Tier 2/3 data — section 3 not applicable |
-
-| 2 — Quotation | 1, 2, 3, 4, 5, 6, 7 | Section 3 now active — Presidio redact/restore lifecycle, see CLAUDE.md |
-
-| 2.5 — Hardening | 1, 2, 4, 5, 6, 7 | JWT auth added to Quotation, rate-limit policies split, 429 retry + Retry-After fixed via real load testing |
-
-| 3 — Tracking | TBD at kickoff | |
-
-| 4 — Booking | TBD at kickoff | SK + tool-output trust become active |
-
+| Phase | Sections Active | Public Demo Status | Notes |
+|---|---|---|---|
+| Phase 1: FAQ | 1, 2, 4, 5, 6, 7 | Live on Render | No Tier 2/3 data; section 3 not applicable |
+| Phase 2: Quotation | 1, 2, 3, 4, 5, 6, 7 | Built, not in public demo | Requires persistent database; Tier 2 redact/restore lifecycle active |
+| Phase 2.5: Hardening | 1, 2, 4, 5, 6, 7 | Completed | JWT added, rate-limit policies split, provider-agnostic settings, middleware order fixed |
+| Phase 3: Tracking | TBD at kickoff | Planned | Tracking data expected to introduce Tier 2 handling |
+| Phase 4: Booking | TBD at kickoff | Planned | Agentic workflow; tool-output trust controls become active |
