@@ -3,18 +3,14 @@ WORKDIR /app
 EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /repo
-
-COPY ["src/LogisticsFlow.API/LogisticsFlow.API.csproj", "src/LogisticsFlow.API/"]
-COPY ["src/LogisticsFlow.Application/LogisticsFlow.Application.csproj", "src/LogisticsFlow.Application/"]
-COPY ["src/LogisticsFlow.Infrastructure/LogisticsFlow.Infrastructure.csproj", "src/LogisticsFlow.Infrastructure/"]
-COPY ["src/LogisticsFlow.Domain/LogisticsFlow.Domain.csproj", "src/LogisticsFlow.Domain/"]
-
-RUN dotnet restore "src/LogisticsFlow.API/LogisticsFlow.API.csproj"
+WORKDIR /build
 
 COPY . .
 
-RUN dotnet publish "src/LogisticsFlow.API/LogisticsFlow.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "src/LogisticsFlow.API/LogisticsFlow.API.csproj" \
+    -c Release \
+    -o /app/publish \
+    /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
