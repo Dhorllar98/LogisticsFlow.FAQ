@@ -21,6 +21,11 @@ public static class DependencyInjection
         services.AddScoped<IValidator<QuotationRequestDto>, QuotationRequestValidator>();
         services.AddScoped<IValidator<QuotationResponseDto>, QuotationResponseValidator>();
 
+        // Phase 3 — Tracking
+        services.AddScoped<ITrackingService, TrackingService>();
+        services.AddScoped<IValidator<TrackingRequestDto>, TrackingRequestValidator>();
+        services.AddScoped<IValidator<TrackingResponseDto>, TrackingResponseValidator>();
+
         return services;
     }
 }

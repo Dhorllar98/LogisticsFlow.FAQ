@@ -16,10 +16,14 @@ public class AppDbContext : DbContext
 
     public DbSet<Client> Clients => Set<Client>();
     public DbSet<RateAgreement> RateAgreements => Set<RateAgreement>();
+    public DbSet<Shipment> Shipments => Set<Shipment>();
+    public DbSet<TrackingEvent> TrackingEvents => Set<TrackingEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfiguration(new ClientConfiguration());
         modelBuilder.ApplyConfiguration(new RateAgreementConfiguration());
+        modelBuilder.ApplyConfiguration(new ShipmentConfiguration());
+        modelBuilder.ApplyConfiguration(new TrackingEventConfiguration());
     }
 }
