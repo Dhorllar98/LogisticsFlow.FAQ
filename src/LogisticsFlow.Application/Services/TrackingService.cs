@@ -69,7 +69,7 @@ public class TrackingService : ITrackingService
 
         if (string.IsNullOrWhiteSpace(statusSummary))
         {
-            throw new InvalidOperationException("AI returned an empty status summary.");
+            throw new TrackingResponseInvalidException("AI returned an empty status summary.");
         }
 
         return new TrackingResponseDto
