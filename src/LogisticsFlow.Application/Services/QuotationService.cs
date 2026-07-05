@@ -2,6 +2,7 @@
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
 using LogisticsFlow.Application.Prompts;
+
 using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Domain.Exceptions;
 using LogisticsFlow.Domain.Interfaces;
@@ -66,7 +67,7 @@ public class QuotationService : IQuotationService
         };
 
         var rawResponse = await _claudeApiClient.SendMessageAsync(
-            QuotationSystemPrompts.ComposeQuoteV1, history, cancellationToken);
+            SystemPrompts.ComposeQuoteV1, history, cancellationToken);
 
         // RedactionFailureException propagates unhandled here by design â€”
         // GlobalExceptionMiddleware maps it to 422. No try/catch needed in

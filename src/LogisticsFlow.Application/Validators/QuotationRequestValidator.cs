@@ -15,6 +15,8 @@ public class QuotationRequestValidator : AbstractValidator<QuotationRequestDto>
 
     public QuotationRequestValidator()
     {
+        RuleLevelCascadeMode = CascadeMode.Stop;
+        
         RuleFor(x => x.AccountId)
             .NotEmpty()
             .WithMessage("AccountId is required.")

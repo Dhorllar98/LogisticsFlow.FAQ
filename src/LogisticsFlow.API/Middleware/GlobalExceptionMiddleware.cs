@@ -47,14 +47,15 @@ public class GlobalExceptionMiddleware
             RedactionFailureException =>
                 (HttpStatusCode.UnprocessableEntity, "Request could not be processed safely."),
 
-            LlmRateLimitException ex =>
+            LlmRateLimitException =>
                 (HttpStatusCode.TooManyRequests, "The AI provider is temporarily rate-limited. Please try again shortly."),
 
             LlmTimeoutException =>
                 (HttpStatusCode.GatewayTimeout, "The AI provider did not respond in time."),
 
             LlmInvalidResponseException =>
-                (HttpStatusCode.BadGateway, "The AI provider returned an unexpected response."),            
+                (HttpStatusCode.BadGateway, "The AI provider returned an unexpected response."),  
+
             BusinessRuleException =>
                 (HttpStatusCode.UnprocessableEntity, exception.Message),
 
@@ -66,6 +67,11 @@ public class GlobalExceptionMiddleware
         };
 
         context.Response.ContentType = "application/json";
+        if (exception is LlmRateLimitException rateLimitEx && rateLimitEx.RetryAfter.HasValue)
+        {
+            context.Response.Headers.RetryAfter = 
+            ((int)rateLimitEx.RetryAfter.Value.TotalSeconds).ToString();
+        }
         context.Response.StatusCode = (int)statusCode;
 
         var body = JsonSerializer.Serialize(

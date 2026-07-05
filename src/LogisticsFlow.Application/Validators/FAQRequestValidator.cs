@@ -14,6 +14,8 @@ public class FAQRequestValidator : AbstractValidator<FAQRequestDto>
 
     public FAQRequestValidator()
     {
+        RuleLevelCascadeMode = CascadeMode.Stop;
+        
         RuleFor(x => x.Query)
             .NotEmpty().WithMessage("Query is required.")
             .MinimumLength(3).WithMessage("Query is too short to be meaningful.")

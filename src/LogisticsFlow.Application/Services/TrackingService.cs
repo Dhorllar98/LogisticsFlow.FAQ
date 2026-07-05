@@ -1,4 +1,5 @@
 using System.Text;
+using FluentValidation;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
 using LogisticsFlow.Application.Prompts;
@@ -13,15 +14,18 @@ public class TrackingService : ITrackingService
     private readonly ITrackingRepository _trackingRepository;
     private readonly IRedactionService _redactionService;
     private readonly ILlmClient _llmClient;
+    private readonly IValidator<TrackingResponseDto> _responseValidator;
 
     public TrackingService(
         ITrackingRepository trackingRepository,
         IRedactionService redactionService,
-        ILlmClient llmClient)
+        ILlmClient llmClient,
+        IValidator<TrackingResponseDto> responseValidator)
     {
         _trackingRepository = trackingRepository;
         _redactionService = redactionService;
         _llmClient = llmClient;
+        _responseValidator = responseValidator;
     }
 
     public async Task<TrackingResponseDto> GetStatusAsync(
@@ -29,11 +33,6 @@ public class TrackingService : ITrackingService
         string accountId,
         CancellationToken cancellationToken = default)
     {
-        // Account scoping is now enforced inside the repository query
-        // itself (Shipment.ClientId -> Client.AccountId). A null result
-        // means either the tracking number doesn't exist or it belongs
-        // to a different account — those two cases are deliberately
-        // indistinguishable to the caller.
         var shipment = await _trackingRepository.GetByTrackingNumberForAccountAsync(
             request.TrackingNumber, accountId, cancellationToken);
 
@@ -52,11 +51,7 @@ public class TrackingService : ITrackingService
 
         var conversationHistory = new List<ChatMessage>
         {
-            new()
-            {
-                Role = ChatRole.User,
-                Content = promptContent
-            }
+            new() { Role = ChatRole.User, Content = promptContent }
         };
 
         var rawResponse = await _llmClient.SendMessageAsync(
@@ -67,12 +62,7 @@ public class TrackingService : ITrackingService
         var statusSummary = await _redactionService.RestoreAsync(
             rawResponse, redactionMap, cancellationToken);
 
-        if (string.IsNullOrWhiteSpace(statusSummary))
-        {
-            throw new TrackingResponseInvalidException("AI returned an empty status summary.");
-        }
-
-        return new TrackingResponseDto
+        var response = new TrackingResponseDto
         {
             TrackingNumber = shipment.TrackingNumber,
             Carrier = shipment.Carrier,
@@ -82,6 +72,15 @@ public class TrackingService : ITrackingService
                 ? shipment.Events.Max(e => e.TimestampUtc)
                 : shipment.CreatedAtUtc
         };
+
+        var validationResult = await _responseValidator.ValidateAsync(response, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            var errors = string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage));
+            throw new BusinessRuleException($"Tracking response failed validation: {errors}");
+        }
+
+        return response;
     }
 
     private static string BuildTier2Block(Shipment shipment, string accountId)
@@ -103,10 +102,7 @@ public class TrackingService : ITrackingService
         for (var i = 0; i < eventsWithNotes.Count; i++)
         {
             var collapsedNote = eventsWithNotes[i].Notes!
-                .Replace("\r\n", " ")
-                .Replace("\n", " ")
-                .Trim();
-
+                .Replace("\r\n", " ").Replace("\n", " ").Trim();
             lines.Add($"Event Note {i}: {collapsedNote}");
         }
 

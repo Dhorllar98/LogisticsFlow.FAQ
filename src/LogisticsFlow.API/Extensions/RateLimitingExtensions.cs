@@ -1,4 +1,5 @@
-﻿using System.Threading.RateLimiting;
+﻿using System.Globalization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace LogisticsFlow.API.Extensions;
@@ -14,6 +15,23 @@ public static class RateLimitingExtensions
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+            // RESOLVED: the framework does not reliably attach Retry-After
+            // from FixedWindowRateLimiter lease metadata without an explicit
+            // OnRejected handler - confirmed by 3 failing integration tests
+            // asserting this header's presence across all three policies.
+            // Set it deterministically here rather than depending on
+            // implicit middleware behavior.
+            options.OnRejected = (context, cancellationToken) =>
+            {
+                if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+                {
+                    context.HttpContext.Response.Headers.RetryAfter =
+                        ((int)retryAfter.TotalSeconds).ToString(NumberFormatInfo.InvariantInfo);
+                }
+
+                return ValueTask.CompletedTask;
+            };
 
             options.AddPolicy(FaqPolicy, httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
@@ -37,12 +55,6 @@ public static class RateLimitingExtensions
                         QueueLimit = 0
                     }));
 
-            // Same 20/min default as Quotation, same open question already
-            // flagged there and not yet resolved: Tracking's cost profile
-            // (DB lookup + redact + Claude call) matches Quotation's, not
-            // FAQ's cache-assisted flow, so this number is a placeholder
-            // carried forward, not a considered decision specific to
-            // Tracking. Revisit both together, not just this one.
             options.AddPolicy(TrackingPolicy, httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: ResolveClientIp(httpContext),

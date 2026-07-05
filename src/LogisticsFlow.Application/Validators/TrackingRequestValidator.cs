@@ -7,6 +7,8 @@ public class TrackingRequestValidator : AbstractValidator<TrackingRequestDto>
 {
     public TrackingRequestValidator()
     {
+        RuleLevelCascadeMode = CascadeMode.Stop;
+
         RuleFor(x => x.TrackingNumber)
             .NotEmpty()
             .MaximumLength(50)
