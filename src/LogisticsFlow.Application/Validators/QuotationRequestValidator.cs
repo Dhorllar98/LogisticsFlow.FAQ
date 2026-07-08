@@ -5,9 +5,8 @@ namespace LogisticsFlow.Application.Validators;
 
 /// <summary>
 /// Validates incoming quotation requests before they reach the service
-/// layer. Per security-hardening-checklist.md Section 1: explicit length
-/// ceilings on free-text fields, allow-list/format checks on structured
-/// fields, reject (400) rather than silently coerce.
+/// layer. AccountId validation was removed along with the AccountId
+/// field itself — see QuotationRequestDto for why.
 /// </summary>
 public class QuotationRequestValidator : AbstractValidator<QuotationRequestDto>
 {
@@ -16,12 +15,6 @@ public class QuotationRequestValidator : AbstractValidator<QuotationRequestDto>
     public QuotationRequestValidator()
     {
         RuleLevelCascadeMode = CascadeMode.Stop;
-        
-        RuleFor(x => x.AccountId)
-            .NotEmpty()
-            .WithMessage("AccountId is required.")
-            .MaximumLength(64)
-            .WithMessage("AccountId exceeds maximum allowed length.");
 
         RuleFor(x => x.CustomerQuery)
             .MaximumLength(MaxQueryLength)

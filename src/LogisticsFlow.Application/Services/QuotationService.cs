@@ -2,7 +2,6 @@
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
 using LogisticsFlow.Application.Prompts;
-
 using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Domain.Exceptions;
 using LogisticsFlow.Domain.Interfaces;
@@ -10,7 +9,7 @@ using LogisticsFlow.Domain.Interfaces;
 namespace LogisticsFlow.Application.Services;
 
 /// <summary>
-/// Orchestrates a single-call, non-agentic quotation flow (Option A â€”
+/// Orchestrates a single-call, non-agentic quotation flow (Option A —
 /// one rate lookup, one Claude compose call, no Semantic Kernel, per
 /// CLAUDE.md Phase 2 section).
 ///
@@ -18,7 +17,11 @@ namespace LogisticsFlow.Application.Services;
 /// single Claude compose call on redacted text -> restore -> validate ->
 /// return real (unredacted) data to the requesting client, who owns it.
 ///
-/// The RedactionMap is held locally for this method's lifetime only â€”
+/// accountId is supplied by the caller from the authenticated JWT's
+/// claims — never from the request body. See QuotationRequestDto for
+/// why AccountId was removed from client-facing input.
+///
+/// The RedactionMap is held locally for this method's lifetime only —
 /// never cached, logged, or persisted, per data-classification.md.
 /// </summary>
 public class QuotationService : IQuotationService
@@ -26,29 +29,29 @@ public class QuotationService : IQuotationService
     private readonly IClientRepository _clientRepository;
     private readonly IRateAgreementRepository _rateAgreementRepository;
     private readonly IRedactionService _redactionService;
-    private readonly ILlmClient _claudeApiClient;
+    private readonly ILlmClient _llmClient;
     private readonly IValidator<QuotationResponseDto> _responseValidator;
 
     public QuotationService(
         IClientRepository clientRepository,
         IRateAgreementRepository rateAgreementRepository,
         IRedactionService redactionService,
-        ILlmClient claudeApiClient,
+        ILlmClient llmClient,
         IValidator<QuotationResponseDto> responseValidator)
     {
         _clientRepository = clientRepository;
         _rateAgreementRepository = rateAgreementRepository;
         _redactionService = redactionService;
-        _claudeApiClient = claudeApiClient;
+        _llmClient = llmClient;
         _responseValidator = responseValidator;
     }
 
     public async Task<QuotationResponseDto> GetQuotationAsync(
-        QuotationRequestDto request, CancellationToken cancellationToken = default)
+        QuotationRequestDto request, string accountId, CancellationToken cancellationToken = default)
     {
-        var client = await _clientRepository.GetByAccountIdAsync(request.AccountId, cancellationToken)
+        var client = await _clientRepository.GetByAccountIdAsync(accountId, cancellationToken)
             ?? throw new RateAgreementNotFoundException(
-                $"No client found for account '{request.AccountId}'.");
+                $"No client found for account '{accountId}'.");
 
         var rateAgreement = await _rateAgreementRepository.GetCurrentForClientAsync(client.Id, cancellationToken)
             ?? throw RateAgreementNotFoundException.ForClient(client.Id);
@@ -58,18 +61,15 @@ public class QuotationService : IQuotationService
         var plainTextPayload = BuildPlainTextPayload(client, rateAgreement, request.CustomerQuery);
         var (redactedPayload, redactionMap) = await _redactionService.RedactAsync(plainTextPayload, cancellationToken);
 
-        // ChatRole.User, NOT the string "user" â€” ILlmClient's real
-        // contract uses the ChatRole enum; ClaudeApiClient.cs maps it to
-        // the Claude API's string format internally.
         var history = new List<ChatMessage>
         {
             new() { Role = ChatRole.User, Content = redactedPayload }
         };
 
-        var rawResponse = await _claudeApiClient.SendMessageAsync(
+        var rawResponse = await _llmClient.SendMessageAsync(
             SystemPrompts.ComposeQuoteV1, history, cancellationToken);
 
-        // RedactionFailureException propagates unhandled here by design â€”
+        // RedactionFailureException propagates unhandled here by design —
         // GlobalExceptionMiddleware maps it to 422. No try/catch needed in
         // this service or the controller; that's the whole point of the
         // centralized exception middleware pattern already in use.
@@ -114,4 +114,3 @@ public class QuotationService : IQuotationService
         return string.Join(Environment.NewLine, lines);
     }
 }
-

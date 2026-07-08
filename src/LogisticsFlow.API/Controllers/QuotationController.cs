@@ -37,6 +37,16 @@ public class QuotationController : ControllerBase
         _jwtSettings = jwtSettings.Value;
     }
 
+    /// <summary>
+    /// RESOLVED (security fix): accountId now comes exclusively from the
+    /// authenticated JWT's claims, matching TrackingController's pattern.
+    /// Previously QuotationRequestDto carried a client-supplied AccountId
+    /// field that was never checked against the token's identity — any
+    /// authenticated client could request any other client's quote by
+    /// changing that field. [Authorize] alone only proves *a* valid
+    /// token; it never proved the token belonged to the account being
+    /// queried. That gap is closed here.
+    /// </summary>
     [HttpPost("quote")]
     [Authorize]
     public async Task<ActionResult<QuotationResponseDto>> GetQuote(
@@ -50,18 +60,16 @@ public class QuotationController : ControllerBase
                 .Select(e => new { field = e.PropertyName, error = e.ErrorMessage }));
         }
 
-        var response = await _quotationService.GetQuotationAsync(request, cancellationToken);
+        var accountId = User.FindFirstValue(ClaimTypes.Name);
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            return Unauthorized(new { error = "Token does not contain a valid account identifier." });
+        }
+
+        var response = await _quotationService.GetQuotationAsync(request, accountId, cancellationToken);
         return Ok(response);
     }
 
-    /// <summary>
-    /// Real client credential flow - replaces the previous open dev-token
-    /// placeholder. A client proves it knows its secret (checked against
-    /// the BCrypt hash stored on the Client entity) before receiving a
-    /// token. There is still no client onboarding/secret-rotation flow
-    /// yet (out of scope for this phase) - this only verifies an
-    /// already-provisioned secret, it does not issue new ones.
-    /// </summary>
     [HttpPost("token")]
     [AllowAnonymous]
     public async Task<IActionResult> GetToken(

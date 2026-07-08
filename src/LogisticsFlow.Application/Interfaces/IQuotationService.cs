@@ -6,5 +6,6 @@ public interface IQuotationService
 {
     Task<QuotationResponseDto> GetQuotationAsync(
         QuotationRequestDto request,
+        string accountId,
         CancellationToken cancellationToken = default);
 }

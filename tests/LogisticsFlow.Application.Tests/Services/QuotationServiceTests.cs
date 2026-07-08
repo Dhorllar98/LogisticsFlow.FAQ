@@ -50,10 +50,10 @@ public class QuotationServiceTests
         _clientRepo.Setup(r => r.GetByAccountIdAsync("missing", default))
             .ReturnsAsync((Client?)null);
 
-        var request = new QuotationRequestDto { AccountId = "missing" };
+        var request = new QuotationRequestDto();
 
         await Assert.ThrowsAsync<RateAgreementNotFoundException>(
-            () => _sut.GetQuotationAsync(request));
+            () => _sut.GetQuotationAsync(request, "missing"));
     }
 
     [Fact]
@@ -63,10 +63,40 @@ public class QuotationServiceTests
         _clientRepo.Setup(r => r.GetByAccountIdAsync(client.AccountId, default)).ReturnsAsync(client);
         _rateRepo.Setup(r => r.GetCurrentForClientAsync(client.Id, default)).ReturnsAsync((RateAgreement?)null);
 
-        var request = new QuotationRequestDto { AccountId = client.AccountId };
+        var request = new QuotationRequestDto();
 
         await Assert.ThrowsAsync<RateAgreementNotFoundException>(
-            () => _sut.GetQuotationAsync(request));
+            () => _sut.GetQuotationAsync(request, client.AccountId));
+    }
+
+    [Fact]
+    public async Task GetQuotationAsync_AccountIdComesFromCallerNotRequestBody_ScopesToCorrectClient()
+    {
+        // Regression guard for the IDOR fix: even if two different clients'
+        // data exists, the accountId parameter — never anything on the
+        // request DTO — determines which client's rate agreement is looked
+        // up. QuotationRequestDto has no AccountId property at all anymore;
+        // this test exists specifically to catch a future regression that
+        // reintroduces client-controlled account selection.
+        var clientA = MakeClient(accountId: "ACC-A");
+        var clientB = MakeClient(accountId: "ACC-B");
+        var rateA = MakeRateAgreement(clientA.Id);
+
+        _clientRepo.Setup(r => r.GetByAccountIdAsync("ACC-A", default)).ReturnsAsync(clientA);
+        _clientRepo.Setup(r => r.GetByAccountIdAsync("ACC-B", default)).ReturnsAsync(clientB);
+        _rateRepo.Setup(r => r.GetCurrentForClientAsync(clientA.Id, default)).ReturnsAsync(rateA);
+
+        _redaction.Setup(r => r.RedactAsync(It.IsAny<string>(), default))
+            .ReturnsAsync(("redacted", RedactionMap.Empty));
+        _llmClient.Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<ChatMessage>>(), default))
+            .ReturnsAsync("composed message");
+        _redaction.Setup(r => r.RestoreAsync(It.IsAny<string>(), RedactionMap.Empty, default))
+            .ReturnsAsync("composed message");
+
+        var response = await _sut.GetQuotationAsync(new QuotationRequestDto(), "ACC-A");
+
+        Assert.Equal(clientA.Id, response.ClientId);
+        _rateRepo.Verify(r => r.GetCurrentForClientAsync(clientB.Id, default), Times.Never);
     }
 
     [Fact]
@@ -105,8 +135,8 @@ public class QuotationServiceTests
         _redaction.Setup(r => r.RestoreAsync(It.IsAny<string>(), map, default))
             .ReturnsAsync((string text, RedactionMap m, CancellationToken _) => text);
 
-        var request = new QuotationRequestDto { AccountId = client.AccountId };
-        await _sut.GetQuotationAsync(request);
+        var request = new QuotationRequestDto();
+        await _sut.GetQuotationAsync(request, client.AccountId);
 
         Assert.NotNull(capturedHistory);
         Assert.All(capturedHistory!, m => Assert.Equal(ChatRole.User, m.Role));
@@ -140,10 +170,10 @@ public class QuotationServiceTests
         _redaction.Setup(r => r.RestoreAsync(It.IsAny<string>(), map, default))
             .ThrowsAsync(RedactionFailureException.RestoreMismatch("[REDACTED_99]"));
 
-        var request = new QuotationRequestDto { AccountId = client.AccountId };
+        var request = new QuotationRequestDto();
 
         await Assert.ThrowsAsync<RedactionFailureException>(
-            () => _sut.GetQuotationAsync(request));
+            () => _sut.GetQuotationAsync(request, client.AccountId));
     }
 
     [Fact]
@@ -166,8 +196,8 @@ public class QuotationServiceTests
             .Setup(v => v.ValidateAsync(It.IsAny<QuotationResponseDto>(), default))
             .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("ComposedMessage", "boom") }));
 
-        var request = new QuotationRequestDto { AccountId = client.AccountId };
+        var request = new QuotationRequestDto();
 
-        await Assert.ThrowsAsync<BusinessRuleException>(() => _sut.GetQuotationAsync(request));
+        await Assert.ThrowsAsync<BusinessRuleException>(() => _sut.GetQuotationAsync(request, client.AccountId));
     }
 }
