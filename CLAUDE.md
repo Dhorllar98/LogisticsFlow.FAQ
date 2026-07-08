@@ -83,6 +83,34 @@ declaration, and its own Infinite Loop Guard and tool-output-trust
 controls designed before code is written. It is never added as a silent
 patch to Phase 3 v1's system prompt or service.
 
+### Phase 3 Tech Debt Closure (pre-3.5 gate)
+
+Before Phase 3.5 kickoff, two items carried forward from Phase 3 v1 were
+reviewed:
+
+- **`ShipmentMode` string → enum**: Closed. `Shipment.Mode` is now
+  `ShipmentMode` (Domain enum: `Land`, `Sea`, `Air`), persisted via
+  `HasConversion<string>()` so the database column is unaffected — this
+  was a domain-model correction, not a schema change. `TrackingResponseDto.Mode`
+  intentionally remains a plain `string`, converted at the
+  service-to-DTO mapping boundary (`shipment.Mode.ToString()`) in
+  `TrackingService`. This keeps the external API contract decoupled
+  from the internal domain enum, consistent with this project's
+  standing principle that internal representation should not leak 1:1
+  into the public contract.
+- **Exception → status code mapping**: Reviewed, found already closed.
+  `LlmRateLimitException` (429), `LlmTimeoutException` (504), and
+  `LlmInvalidResponseException` (502) are correctly mapped in
+  `GlobalExceptionMiddleware`, ordered before the `BusinessRuleException`
+  catch-all so the type-pattern switch resolves correctly. This was
+  fixed during Phase 3's cross-cutting session; the tech-debt tracking
+  note simply hadn't been updated to reflect it. No code change was
+  needed — closed by verification, not by a fix.
+
+HTTP security headers remain the one open item from Phase 3's original
+tech-debt list. It has no coupling to Phase 3.5's scope and is logged
+for its own dedicated fix, not treated as phase-blocking.
+
 ### Phase 3.5 (Planned, Not Yet Scoped for Implementation)
 Chained/agentic delay-risk assessment: lookup → historical-lane transit
 comparison → risk flag → suggested action. This is the first candidate

@@ -8,7 +8,7 @@ rows — they do not replace or narrow prior security rules.
 
 - [ ] Every DTO has a FluentValidation validator before reaching a service
 - [ ] Free-text fields have explicit length ceilings
-- [ ] Structured fields use allow-lists or enums, never loose string trust
+- [x] Structured fields use allow-lists or enums, never loose string trust
 - [ ] Failed validation returns 400 and is never silently coerced
 
 ## 2. AI Call Boundary
@@ -34,7 +34,7 @@ Active once a module handles Tier 2 or Tier 3 data.
 
 - [ ] Global middleware catches unhandled exceptions
 - [ ] Controllers do not manually construct generic 500 responses
-- [ ] Domain exceptions map to deliberate status codes
+- [x] Domain exceptions map to deliberate status codes
 - [ ] Logged exception detail respects redaction rules
 - [ ] Tier 2 or Tier 3 content never appears in stack traces or structured logs
 
@@ -69,7 +69,7 @@ Active once a module handles Tier 2 or Tier 3 data.
 | Phase | Sections Active | Public Demo Status | Notes |
 |---|---|---|---|
 | Phase 1: FAQ | 1, 2, 4, 5, 6, 7 | Live on Render | No Tier 2/3 data; section 3 not applicable |
-| Phase 2: Quotation | 1, 2, 3, 4, 5, 6, 7 | Built, not in public demo | Requires persistent database; Tier 2 redact/restore lifecycle active |
+| Phase 2: Quotation | 1, 2, 3, 4, 5, 6, 7 | Built, not in public demo | Requires persistent database; Tier 2 redact/restore lifecycle active; IDOR fix applied (AccountId scoped via JWT claims, not client input) |
 | Phase 2.5: Hardening | 1, 2, 4, 5, 6, 7 | Completed | JWT added, rate-limit policies split, provider-agnostic settings, middleware order fixed |
-| Phase 3: Tracking | 1, 2, 3, 4, 5, 6, 7 | Not started — scope locked | Tier 2 redact/restore lifecycle active (tracking number, account ID, shipment addresses, consignee); Option A single-call non-agentic v1 per CLAUDE.md, SK exception holds until Phase 3.5 |
+| Phase 3: Tracking | 1, 2, 3, 4, 5, 6, 7 | Merged to main | Tier 2 redact/restore lifecycle active (tracking number, account ID, shipment addresses, consignee); Option A single-call non-agentic v1 per CLAUDE.md, SK exception holds until Phase 3.5. Tech debt closed: `ShipmentMode` converted from string to enum (Domain/Infrastructure); exception→status-code mapping for `LlmRateLimitException`/`LlmTimeoutException`/`LlmInvalidResponseException` confirmed already correctly wired to 429/504/502 in `GlobalExceptionMiddleware` (closed during Phase 3's cross-cutting fixes, checklist just hadn't reflected it). HTTP security headers item remains open — logged for its own dedicated fix, not phase-blocking. |
 | Phase 4: Booking | TBD at kickoff | Planned | Agentic workflow; tool-output trust controls become active |
