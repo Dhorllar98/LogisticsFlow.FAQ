@@ -25,6 +25,7 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
 
         builder.Property(s => s.Mode)
             .IsRequired()
+            .HasConversion<string>()
             .HasMaxLength(50);
 
         builder.Property(s => s.OriginAddress)
@@ -45,7 +46,7 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
             .IsRequired();
 
         // Real FK now, matching RateAgreement -> Client exactly.
-        // Restrict, not Cascade — deleting a Client must never silently
+        // Restrict, not Cascade - deleting a Client must never silently
         // wipe shipment history, same reasoning your RateAgreement
         // config already applied.
         builder.HasOne<Client>()

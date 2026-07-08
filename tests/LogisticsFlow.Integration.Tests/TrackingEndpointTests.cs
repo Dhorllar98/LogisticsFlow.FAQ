@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using LogisticsFlow.Domain.Entities;
+using LogisticsFlow.Domain.Enums;
 using LogisticsFlow.Domain.Interfaces;
 using LogisticsFlow.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -66,7 +67,7 @@ public class TrackingEndpointTests : IClassFixture<TestApiFactory>
             TrackingNumber = trackingNumber,
             ClientId = client.Id,
             Carrier = "Maersk Line",
-            Mode = "Sea",
+            Mode = ShipmentMode.Sea,
             OriginAddress = "123 Dock Rd, Lagos",
             DestinationAddress = "45 Port Ave, Apapa",
             ConsigneeName = "John Doe",

@@ -1,4 +1,5 @@
 using LogisticsFlow.Domain.Entities;
+using LogisticsFlow.Domain.Enums;
 using LogisticsFlow.Infrastructure.Persistence;
 using LogisticsFlow.Infrastructure.Repositories;
 using Microsoft.Data.Sqlite;
@@ -42,7 +43,7 @@ public class TrackingRepositoryTests : IDisposable
             TrackingNumber = trackingNumber,
             ClientId = client.Id,
             Carrier = "Maersk Line",
-            Mode = "Sea",
+            Mode = ShipmentMode.Sea,
             OriginAddress = "123 Dock Rd, Lagos",
             DestinationAddress = "45 Port Ave, Apapa",
             ConsigneeName = "John Doe",

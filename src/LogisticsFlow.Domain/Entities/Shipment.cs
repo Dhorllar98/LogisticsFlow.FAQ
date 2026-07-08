@@ -1,3 +1,5 @@
+using LogisticsFlow.Domain.Enums;
+
 namespace LogisticsFlow.Domain.Entities;
 
 public class Shipment
@@ -6,7 +8,7 @@ public class Shipment
     public string TrackingNumber { get; set; } = string.Empty;
     public Guid ClientId { get; set; }
     public string Carrier { get; set; } = string.Empty;
-    public string Mode { get; set; } = string.Empty; // "Land" | "Sea" | "Air"
+    public ShipmentMode Mode { get; set; }
     public string OriginAddress { get; set; } = string.Empty;
     public string DestinationAddress { get; set; } = string.Empty;
     public string ConsigneeName { get; set; } = string.Empty;

@@ -66,7 +66,7 @@ public class TrackingService : ITrackingService
         {
             TrackingNumber = shipment.TrackingNumber,
             Carrier = shipment.Carrier,
-            Mode = shipment.Mode,
+            Mode = shipment.Mode.ToString(),
             StatusSummary = statusSummary,
             LastUpdatedUtc = shipment.Events.Count > 0
                 ? shipment.Events.Max(e => e.TimestampUtc)

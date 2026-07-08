@@ -3,6 +3,7 @@ using FluentValidation.Results;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Services;
 using LogisticsFlow.Domain.Entities;
+using LogisticsFlow.Domain.Enums;
 using LogisticsFlow.Domain.Exceptions;
 using LogisticsFlow.Domain.Interfaces;
 using LogisticsFlow.Domain.ValueObjects;
@@ -34,7 +35,7 @@ public class TrackingServiceTests
         TrackingNumber = "TRK-TEST-001",
         ClientId = Guid.NewGuid(),
         Carrier = "Maersk Line",
-        Mode = "Sea",
+        Mode = ShipmentMode.Sea,
         OriginAddress = "123 Dock Rd, Lagos",
         DestinationAddress = "45 Port Ave, Apapa",
         ConsigneeName = "John Doe",
@@ -60,7 +61,7 @@ public class TrackingServiceTests
     [Fact]
     public async Task GetStatusAsync_TrackingNumberBelongsToDifferentAccount_ThrowsTrackingNotFoundException()
     {
-        // The repository's join enforces scoping — a wrong account and a
+        // The repository's join enforces scoping - a wrong account and a
         // nonexistent tracking number are indistinguishable at this layer,
         // exactly as designed.
         _repo.Setup(r => r.GetByTrackingNumberForAccountAsync("TRK-TEST-001", "ACC-WRONG", default))
@@ -104,7 +105,7 @@ public class TrackingServiceTests
 
         Assert.Contains(shipment.OriginAddress, capturedTier2Input);
         Assert.Contains(shipment.Carrier, capturedPromptContent);
-        Assert.Contains(shipment.Mode, capturedPromptContent);
+        Assert.Contains(shipment.Mode.ToString(), capturedPromptContent);
         Assert.DoesNotContain(shipment.OriginAddress, capturedPromptContent);
         Assert.Contains("[REDACTED_2]", capturedPromptContent);
     }
