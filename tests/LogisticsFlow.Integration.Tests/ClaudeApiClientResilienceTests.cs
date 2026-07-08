@@ -95,4 +95,32 @@ public class ClaudeApiClientResilienceTests
         await Assert.ThrowsAnyAsync<Exception>(() =>
             client.SendMessageAsync("system prompt", new List<ChatMessage> { new() { Role = ChatRole.User, Content = "hi" } }));
     }
+
+    [Fact]
+    public async Task SendMessageAsync_RefusalResponse_ReturnsTextRatherThanThrowing()
+    {
+        // Sonnet 5 can return 200 OK with stop_reason: "refusal" instead of an
+        // error status — this must NOT be misclassified as
+        // LlmInvalidResponseException. A refusal still populates a text
+        // content block (the refusal explanation), so ClaudeApiClient's
+        // existing "no text block" check correctly leaves this path alone;
+        // this test exists to prove that assumption rather than take it on
+        // faith once Sonnet 5 is live.
+        var handler = new FakeHttpMessageHandler(new[]
+        {
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(
+                    """{"content":[{"type":"text","text":"I can't help with that request."}],"stop_reason":"refusal"}""")
+            }
+        });
+
+        var services = TestServiceProviderFactory.BuildWithFakeHandler(handler);
+        var client = services.GetRequiredService<ILlmClient>();
+
+        var result = await client.SendMessageAsync(
+            "system prompt", new List<ChatMessage> { new() { Role = ChatRole.User, Content = "hi" } });
+
+         Assert.Contains("can't help", result);
+    }
 }

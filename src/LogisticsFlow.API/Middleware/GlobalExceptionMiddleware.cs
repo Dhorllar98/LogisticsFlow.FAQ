@@ -32,17 +32,29 @@ public class GlobalExceptionMiddleware
     private static async Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         // IMPORTANT: order matters. C# type-pattern switches match a base
-        // type against derived instances, so RateAgreementNotFoundException
-        // and RedactionFailureException (both : BusinessRuleException) MUST
-        // be listed before the generic BusinessRuleException case below, or
-        // they will silently match that case first and never reach 404.
+        // type against derived instances, so any exception needing a
+        // status code OTHER than BusinessRuleException's default 422 must
+        // be listed before the generic BusinessRuleException case, or it
+        // will silently match that case first.
         var (statusCode, message) = exception switch
         {
             RateAgreementNotFoundException =>
                 (HttpStatusCode.NotFound, exception.Message),
 
+            TrackingNotFoundException =>
+                (HttpStatusCode.NotFound, exception.Message),
+
             RedactionFailureException =>
-                (HttpStatusCode.UnprocessableEntity, "Quotation could not be processed safely."),
+                (HttpStatusCode.UnprocessableEntity, "Request could not be processed safely."),
+
+            LlmRateLimitException =>
+                (HttpStatusCode.TooManyRequests, "The AI provider is temporarily rate-limited. Please try again shortly."),
+
+            LlmTimeoutException =>
+                (HttpStatusCode.GatewayTimeout, "The AI provider did not respond in time."),
+
+            LlmInvalidResponseException =>
+                (HttpStatusCode.BadGateway, "The AI provider returned an unexpected response."),  
 
             BusinessRuleException =>
                 (HttpStatusCode.UnprocessableEntity, exception.Message),
@@ -55,9 +67,13 @@ public class GlobalExceptionMiddleware
         };
 
         context.Response.ContentType = "application/json";
+        if (exception is LlmRateLimitException rateLimitEx && rateLimitEx.RetryAfter.HasValue)
+        {
+            context.Response.Headers.RetryAfter = 
+            ((int)rateLimitEx.RetryAfter.Value.TotalSeconds).ToString();
+        }
         context.Response.StatusCode = (int)statusCode;
 
-        // Stack traces never reach the client — logged internally above only
         var body = JsonSerializer.Serialize(
             new { error = message, statusCode = (int)statusCode },
             new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });

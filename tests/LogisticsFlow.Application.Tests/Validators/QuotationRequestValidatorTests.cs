@@ -10,24 +10,9 @@ public class QuotationRequestValidatorTests
     private readonly QuotationRequestValidator _validator = new();
 
     [Fact]
-    public void Validate_EmptyAccountId_ShouldHaveError()
+    public void Validate_NoCustomerQuery_ShouldNotHaveError()
     {
-        var result = _validator.TestValidate(new QuotationRequestDto { AccountId = "" });
-        result.ShouldHaveValidationErrorFor(x => x.AccountId);
-    }
-
-    [Fact]
-    public void Validate_AccountIdTooLong_ShouldHaveError()
-    {
-        var result = _validator.TestValidate(new QuotationRequestDto { AccountId = new string('a', 65) });
-        result.ShouldHaveValidationErrorFor(x => x.AccountId);
-    }
-
-    [Fact]
-    public void Validate_ValidAccountId_NoCustomerQuery_ShouldNotHaveError()
-    {
-        var result = _validator.TestValidate(new QuotationRequestDto { AccountId = "ACC-123" });
-        result.ShouldNotHaveValidationErrorFor(x => x.AccountId);
+        var result = _validator.TestValidate(new QuotationRequestDto());
         result.ShouldNotHaveValidationErrorFor(x => x.CustomerQuery);
     }
 
@@ -36,7 +21,6 @@ public class QuotationRequestValidatorTests
     {
         var result = _validator.TestValidate(new QuotationRequestDto
         {
-            AccountId = "ACC-123",
             CustomerQuery = new string('a', 501)
         });
 
@@ -48,7 +32,6 @@ public class QuotationRequestValidatorTests
     {
         var result = _validator.TestValidate(new QuotationRequestDto
         {
-            AccountId = "ACC-123",
             CustomerQuery = "12345 !!! ###"
         });
 
@@ -60,7 +43,6 @@ public class QuotationRequestValidatorTests
     {
         var result = _validator.TestValidate(new QuotationRequestDto
         {
-            AccountId = "ACC-123",
             CustomerQuery = "Can you confirm the handling instructions?"
         });
 

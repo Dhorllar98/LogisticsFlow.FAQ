@@ -1,17 +1,14 @@
-﻿using System.Threading.RateLimiting;
+﻿using System.Globalization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
 namespace LogisticsFlow.API.Extensions;
 
-/// <summary>
-/// Rate limiting configuration for public API endpoints. Each policy is
-/// partitioned by client IP - never a single shared/global bucket - so
-/// one user's traffic cannot exhaust another user's quota.
-/// </summary>
 public static class RateLimitingExtensions
 {
     public const string FaqPolicy = "faq-limit";
     public const string QuotationPolicy = "quotation-limit";
+    public const string TrackingPolicy = "tracking-limit";
 
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
     {
@@ -19,25 +16,21 @@ public static class RateLimitingExtensions
         {
             options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 
-            // RESOLVED (Finding D, found via load test): ASP.NET Core's
-            // rate limiter does NOT set Retry-After automatically on
-            // rejection - it has to be read from the lease metadata and
-            // written explicitly here, or the 429 response goes out with
-            // no Retry-After header at all, which is what the load test
-            // caught. Also writes a small JSON body so a rejected request
-            // doesn't return an empty 429 with no explanation.
-            options.OnRejected = async (context, cancellationToken) =>
+            // RESOLVED: the framework does not reliably attach Retry-After
+            // from FixedWindowRateLimiter lease metadata without an explicit
+            // OnRejected handler - confirmed by 3 failing integration tests
+            // asserting this header's presence across all three policies.
+            // Set it deterministically here rather than depending on
+            // implicit middleware behavior.
+            options.OnRejected = (context, cancellationToken) =>
             {
                 if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
                 {
                     context.HttpContext.Response.Headers.RetryAfter =
-                        ((int)retryAfter.TotalSeconds).ToString();
+                        ((int)retryAfter.TotalSeconds).ToString(NumberFormatInfo.InvariantInfo);
                 }
 
-                context.HttpContext.Response.ContentType = "application/json";
-                await context.HttpContext.Response.WriteAsync(
-                    """{"error":"Rate limit exceeded. Please try again shortly."}""",
-                    cancellationToken);
+                return ValueTask.CompletedTask;
             };
 
             options.AddPolicy(FaqPolicy, httpContext =>
@@ -52,6 +45,17 @@ public static class RateLimitingExtensions
                     }));
 
             options.AddPolicy(QuotationPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: ResolveClientIp(httpContext),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 20,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
+
+            options.AddPolicy(TrackingPolicy, httpContext =>
                 RateLimitPartition.GetFixedWindowLimiter(
                     partitionKey: ResolveClientIp(httpContext),
                     factory: _ => new FixedWindowRateLimiterOptions

@@ -2,10 +2,10 @@ using LogisticsFlow.Application.DTOs;
 
 namespace LogisticsFlow.Application.Interfaces;
 
-public interface IQuotationService
+public interface ITrackingService
 {
-    Task<QuotationResponseDto> GetQuotationAsync(
-        QuotationRequestDto request,
+    Task<TrackingResponseDto> GetStatusAsync(
+        TrackingRequestDto request,
         string accountId,
         CancellationToken cancellationToken = default);
 }

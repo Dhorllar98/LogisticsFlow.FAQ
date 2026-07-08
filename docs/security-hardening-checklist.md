@@ -71,5 +71,5 @@ Active once a module handles Tier 2 or Tier 3 data.
 | Phase 1: FAQ | 1, 2, 4, 5, 6, 7 | Live on Render | No Tier 2/3 data; section 3 not applicable |
 | Phase 2: Quotation | 1, 2, 3, 4, 5, 6, 7 | Built, not in public demo | Requires persistent database; Tier 2 redact/restore lifecycle active |
 | Phase 2.5: Hardening | 1, 2, 4, 5, 6, 7 | Completed | JWT added, rate-limit policies split, provider-agnostic settings, middleware order fixed |
-| Phase 3: Tracking | TBD at kickoff | Planned | Tracking data expected to introduce Tier 2 handling |
+| Phase 3: Tracking | 1, 2, 3, 4, 5, 6, 7 | Not started — scope locked | Tier 2 redact/restore lifecycle active (tracking number, account ID, shipment addresses, consignee); Option A single-call non-agentic v1 per CLAUDE.md, SK exception holds until Phase 3.5 |
 | Phase 4: Booking | TBD at kickoff | Planned | Agentic workflow; tool-output trust controls become active |

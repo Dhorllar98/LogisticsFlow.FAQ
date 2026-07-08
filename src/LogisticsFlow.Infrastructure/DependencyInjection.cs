@@ -65,6 +65,7 @@ public static class DependencyInjection
         services.AddScoped<IClientRepository, ClientRepository>();
         services.AddScoped<IRateAgreementRepository, RateAgreementRepository>();
         services.AddScoped<IRedactionService, PresidioRedactionService>();
+        services.AddScoped<ITrackingRepository, TrackingRepository>();
 
         return services;
     }
