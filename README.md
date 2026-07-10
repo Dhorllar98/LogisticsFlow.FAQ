@@ -80,7 +80,7 @@ justification, not adopted for architectural novelty.
 | Phase 3: Order Tracking | Completed, not in public demo | Single-call, non-agentic (Option A); same DB dependency as Quotation |
 | Sonnet 5 migration | Completed | Model, token budget, and refusal-path handling verified across all three modules |
 | Phase 3 tech debt closure | Completed | `ShipmentMode` converted from string to enum; exception→status-code mapping verified correct |
-| Phase 3.5: Delay/risk assessment | Planned | First candidate for genuine Semantic Kernel orchestration, scoped to aggregate lane-history comparison (no cross-account data exposure) |
+| Phase 3.5: Delay/risk assessment | Planned | Aggregate lane-history comparison (no cross-account data exposure); reviewed for Semantic Kernel adoption and found non-agentic — all data is deterministically fetched, no dynamic tool selection required, so it stays single-call per the Phase-Scoped AI Orchestration Exception |
 | Phase 4: Booking | Planned | Agentic workflow phase |
 
 The current public deployment intentionally exposes the FAQ workflow

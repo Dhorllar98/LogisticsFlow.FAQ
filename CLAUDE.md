@@ -112,13 +112,28 @@ tech-debt list. It has no coupling to Phase 3.5's scope and is logged
 for its own dedicated fix, not treated as phase-blocking.
 
 ### Phase 3.5 (Planned, Not Yet Scoped for Implementation)
-Chained/agentic delay-risk assessment: lookup → historical-lane transit
-comparison → risk flag → suggested action. This is the first candidate
-for genuine SK Plugin orchestration ahead of Booking, specifically
-because it has a real business justification (predictive delay
-flagging) rather than being adopted for architectural novelty. Full
-Tier/SK/HTTP contract declarations for 3.5 are written at 3.5 kickoff,
-not now.
+Delay-risk assessment: lookup → historical-lane transit comparison →
+risk flag → suggested action.
+
+On review at 3.5 kickoff, this was found to be a deterministic data
+pipeline, not an agentic flow: the application always fetches both the
+current shipment and the lane aggregate before making one composition
+call — there is no point where the AI dynamically decides what to
+fetch next. Per the Phase-Scoped AI Orchestration Exception (Patch
+2.2), Semantic Kernel is therefore NOT used in Phase 3.5. Adopting it
+here would have been novelty-driven, not justified by genuine need,
+which this project has held itself against every prior phase.
+
+Genuine SK Plugin orchestration — real dynamic tool selection, where
+an intermediate result determines what gets fetched next, plus a live
+Infinite Loop Guard and tool-output-trust boundary — is deferred to
+Phase 4: Booking, where it was already anticipated in this file's
+Standing Security Instruction. That is the first phase with an actual
+branching agentic decision (carrier/date/pricing fallback logic), so
+it is the first phase where SK earns its place.
+
+Full Tier/HTTP contract declarations for 3.5 are below. Layer-by-layer
+implementation plan is finalized separately before code is written.
 
 ### Tier 2 Field Declaration (binding — see docs/data-classification.md)
 The following fields are Tier 2 and MUST be redacted via Presidio before
