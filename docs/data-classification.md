@@ -40,6 +40,25 @@ questions. If a future enhancement allowed a user to reference a specific
 shipment, account, negotiated rate, or customer record, that request would
 become Tier 2 immediately.
 
+## Derived Aggregate Data (Phase 3.5)
+
+Phase 3.5 introduces a data pattern not previously present in this
+project: Tier 1 output computed *from* what would otherwise be Tier 2
+inputs, via aggregation across many independent shippers.
+
+Lane-history statistics (average transit days, sample size) are computed
+by pooling delivered-shipment data across every client that has shipped
+a given Carrier + Mode + OriginRegion + DestinationRegion combination.
+No single client's data is exposed in the result: at the enforced
+minimum sample size of 5, no individual shipment can dominate or be
+reverse-engineered from the average. This is classified Tier 1 — but
+unlike the FAQ knowledge base's plain, always-Tier-1 content, this Tier
+1 status depends on the aggregation and minimum-sample-size mechanism
+holding, not on the underlying data being inherently non-sensitive. The
+region fields used as grouping keys are deliberately coarse (city/port
+level) rather than exact addresses, specifically so the grouping
+mechanism itself cannot re-identify a single shipment or account.
+
 ## Classification by Module
 
 | Module | Expected Classification | Notes |
@@ -47,6 +66,7 @@ become Tier 2 immediately.
 | FAQ | Tier 1 | Live public demo; general logistics knowledge only |
 | Quotation | Tier 2 | Client-specific accounts and negotiated rates |
 | Tracking | Tier 2 | Tracking numbers tied to customer accounts |
+| Risk Assessment | Tier 1 (derived) + Tier 2 (existing shipment lookup) | Lane aggregates are Tier 1 by design (pooled, depersonalized, minimum sample size enforced); the underlying shipment lookup reuses Tracking's existing Tier 2 fields unchanged |
 | Booking | Tier 2 and Tier 3 | May touch customer details, payment data, and credentials |
 
 ## Current Public Demo

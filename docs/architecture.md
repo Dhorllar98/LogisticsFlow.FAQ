@@ -70,6 +70,9 @@ auth shape is inaccurate.
 
 - `FAQController` — single endpoint: `POST /api/faq/ask`
 - `QuotationController` — database-backed; not part of current public demo
+- `TrackingController` — database-backed; account-scoped shipment status
+- `RiskAssessmentController` — database-backed; deterministic risk level
+  plus AI-composed suggested action, scoped to the authenticated account
 - `GlobalExceptionMiddleware`
 - `CorsExtensions`, `RateLimitingExtensions`
 - JWT Bearer configuration
@@ -183,5 +186,6 @@ The current Render deployment is FAQ-only:
 | Phase 1: FAQ | Knowledge-grounded logistics FAQ | Live on Render |
 | Phase 2: Quotation | Database-backed quotation workflow | Built, not in public demo |
 | Phase 2.5: Provider abstraction | Typed provider settings, `ILlmClient` abstraction | Completed |
-| Phase 3: Tracking | Shipment tracking workflow | Planned |
+| Phase 3: Tracking | Shipment tracking workflow | Merged to main |
+| Phase 3.5: Delay/risk assessment | Aggregate lane-history comparison, deterministic risk level | Built, branch not yet merged |
 | Phase 4: Booking | Agentic booking workflow with Semantic Kernel | Planned |
