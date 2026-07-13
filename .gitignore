@@ -7,3 +7,7 @@ appsettings.Development.json
 .vs/
 .agents/
 AGENTS.md
+
+seed_lane_history.sql
+verify_backfill.sql
+verify_seed.sql

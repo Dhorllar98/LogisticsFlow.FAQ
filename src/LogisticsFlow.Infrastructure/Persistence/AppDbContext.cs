@@ -5,10 +5,10 @@ using Microsoft.EntityFrameworkCore;
 namespace LogisticsFlow.Infrastructure.Persistence;
 
 /// <summary>
-/// First EF Core DbContext in the suite — Phase 1 (FAQ) was JSON-backed
+/// First EF Core DbContext in the suite - Phase 1 (FAQ) was JSON-backed
 /// and had no database. Fluent API only, per s-tier-backend standards;
-/// no DataAnnotations on entities. Provider is SQL Server (configured in
-/// DependencyInjection.cs via UseSqlServer).
+/// no DataAnnotations on entities. Provider is PostgreSQL via Npgsql
+/// (configured in Infrastructure/DependencyInjection.cs via UseNpgsql).
 /// </summary>
 public class AppDbContext : DbContext
 {

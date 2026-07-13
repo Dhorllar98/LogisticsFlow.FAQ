@@ -36,6 +36,20 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
             .IsRequired()
             .HasMaxLength(512);
 
+        // Coarse, non-account-identifying grouping keys for lane-history
+        // aggregation (Phase 3.5). Populated at creation time going
+        // forward; existing rows backfilled once via migration SQL, not
+        // parsed at query time - see CLAUDE.md Phase 3.5 section.
+        builder.Property(s => s.OriginRegion)
+            .IsRequired()
+            .HasMaxLength(128);
+
+        builder.Property(s => s.DestinationRegion)
+            .IsRequired()
+            .HasMaxLength(128);
+
+        builder.HasIndex(s => new { s.Carrier, s.Mode, s.OriginRegion, s.DestinationRegion });
+
         builder.Property(s => s.ConsigneeName)
             .HasMaxLength(256);
 
@@ -45,10 +59,6 @@ public class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.Property(s => s.CreatedAtUtc)
             .IsRequired();
 
-        // Real FK now, matching RateAgreement -> Client exactly.
-        // Restrict, not Cascade - deleting a Client must never silently
-        // wipe shipment history, same reasoning your RateAgreement
-        // config already applied.
         builder.HasOne<Client>()
             .WithMany()
             .HasForeignKey(s => s.ClientId)
