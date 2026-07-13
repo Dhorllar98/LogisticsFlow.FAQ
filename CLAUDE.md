@@ -165,6 +165,104 @@ hard 422, failure logs contain no unredacted Tier 2 values.
   `faq-limit` and `quotation-limit`, tuned separately at implementation
   time based on expected per-account call volume
 
+## Phase 3.5 Scope: Delay/Risk Assessment Module
+
+### Decision Lock: Deterministic Data Pipeline, Not Agentic (confirmed at kickoff)
+See the Phase 3.5 section above for the full SK review. Confirmed: no
+dynamic tool selection occurs anywhere in this flow. The application
+always fetches the current shipment and the lane aggregate before a
+single composition call - there is no branching decision for the AI to
+make. Semantic Kernel is NOT used here. Genuine SK adoption is deferred
+to Phase 4: Booking.
+
+### Decision Lock: Aggregate-Only Lane Comparison (Option C)
+Lane-history comparison is deliberately scoped to pooled, depersonalized
+statistics - never shipment-to-shipment comparison. Grouping key is
+Carrier + Mode + OriginRegion + DestinationRegion (coarse, non-account-
+identifying regions - not exact addresses). This removes cross-tenant
+data exposure risk by architectural design, not by discipline alone. A
+richer, shipment-to-shipment comparison design was considered and
+explicitly rejected: it would require exposing one client's shipment
+data inside another client's response, which no existing redaction
+lifecycle is designed to govern safely, and would introduce a new
+tenant-boundary risk this phase's stated business justification
+(predictive delay flagging) does not require.
+
+### Minimum Sample Size Floor
+No lane average is computed or surfaced below 5 delivered shipments on
+that lane (`LaneHistoryRepository.MinimumSampleSize`). Below this floor,
+the endpoint returns `RiskLevel.Unknown` with `laneAverageDays: null`
+rather than a statistically meaningless (and potentially re-identifying,
+at very low N) average.
+
+### Delivered-vs-In-Transit Distinction
+`TrackingEvent.MilestoneType == MilestoneTypes.Delivered` (Domain
+constant, not an enum - MilestoneType remains free-text since carriers
+report an open-ended set of milestone types; a future enum conversion,
+mirroring the ShipmentMode fix, is a reasonable candidate if this need
+grows, but is out of scope here) is the completed-journey signal used
+two ways:
+- **Lane aggregate**: only delivered shipments contribute to the
+  average. An in-transit shipment's partial elapsed time is not a valid
+  transit-duration sample and would skew the average if included.
+- **Risk level**: a delivered shipment is always `RiskLevel.Normal`,
+  regardless of how long it took - risk assessment only applies to
+  shipments still in transit; there is nothing actionable left to flag
+  once a shipment has arrived.
+
+### Deterministic Risk Computation (binding)
+`RiskLevel` (`Unknown` | `Normal` | `Elevated`) is computed entirely in
+C# (`RiskAssessmentService.DetermineRiskLevel`), never by the AI. The
+AI's only role is composing a plain-English `SuggestedAction` from
+already-decided facts, matching this project's standing principle that
+business-rule decisions belong in code, not in a probabilistic model.
+Elevated threshold: elapsed days > lane average x 1.5
+(`ElevatedRiskMultiplier`, a single named constant).
+
+### Tier 1/2 Field Declaration (binding — see docs/data-classification.md)
+No new Tier 2 fields are introduced this phase. The existing Phase 3
+Tier 2 fields (tracking number, account ID, shipment addresses,
+consignee) remain governed by the identical redaction lifecycle.
+
+New Tier 1 fields, all derived/aggregate, never account-identifying:
+- `OriginRegion` / `DestinationRegion` (Domain fields on `Shipment`) -
+  coarse, non-account-identifying grouping keys, populated at shipment
+  creation and backfilled once via migration SQL for pre-existing rows
+- Lane aggregate statistics (average transit days, sample size) -
+  pooled across all clients who have shipped a given lane; no single
+  client identifiable from the result, and never surfaced below the
+  minimum sample size floor
+- `RiskLevel`, `ElapsedDays` - computed facts about the current
+  shipment, not new sensitive data classes
+
+### Redaction/Restore Lifecycle
+Identical to Phase 2/3's lifecycle. The Tier 2 block (account ID,
+tracking number, addresses, consignee) is redacted before the Claude
+call exactly as in Tracking; the Tier 1 block (carrier, mode, elapsed
+days, lane statistics, risk level) is never redacted, since none of it
+is sensitive or account-identifying.
+
+### HTTP Contract Additions
+- `POST /api/tracking/risk-assessment` — JWT Bearer required, same auth
+  posture as Tracking and Quotation
+- 200 OK: risk assessment composed successfully (including when
+  `riskLevel` is `Unknown` due to insufficient lane history — this is
+  not an error condition)
+- 404 Not Found: tracking number does not resolve to a known shipment
+  for the authenticated account — identical to Tracking's pattern,
+  indistinguishable from a wrong-account request by design
+- 422: redaction/restore failure or malformed AI output
+- Rate limit: new named policy `risk-assessment-limit`, independent of
+  `faq-limit`, `quotation-limit`, and `tracking-limit`
+
+### Migration Note
+`OriginRegion`/`DestinationRegion` were added as nullable columns,
+backfilled once via a regex-based extraction from each shipment's
+existing `OriginAddress`/`DestinationAddress` (text after the last
+comma), then altered to non-nullable. This is a one-time correction, not
+an ongoing pattern — reviewed manually against seeded data after running,
+per this project's standing verify-before-trusting principle.
+
 ## Standing Security Instruction (applies to all current and future phases)
 Any data originating outside this system's own trusted code and curated
 knowledge base — user input, external API responses, tool-call results,

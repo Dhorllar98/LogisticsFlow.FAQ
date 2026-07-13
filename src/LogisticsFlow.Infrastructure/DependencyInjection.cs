@@ -18,9 +18,6 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // Bind provider-specific settings — both always registered,
-        // each client consumes only its own typed settings class.
-        // ApiKey lives in environment variables / gitignored dev secrets only.
         services.Configure<ClaudeSettings>(configuration.GetSection("Providers:Claude"));
         services.Configure<OllamaSettings>(configuration.GetSection("Providers:Ollama"));
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
@@ -42,8 +39,6 @@ public static class DependencyInjection
                 services.AddHttpClient<ILlmClient, ClaudeApiClient>()
                     .AddStandardResilienceHandler(options =>
                     {
-                        // Extends the default transient classifier to include 429
-                        // (rate limit) alongside the default 5xx/408/timeout coverage.
                         var defaultPredicate = options.Retry.ShouldHandle;
                         options.Retry.ShouldHandle = async args =>
                         {
@@ -56,9 +51,6 @@ public static class DependencyInjection
                 break;
         }
 
-        // Npgsql (PostgreSQL) — provider-agnostic EF Core layer.
-        // Connection string supplied entirely via environment variable in
-        // production (ConnectionStrings__LogisticsFlowDb on Railway).
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("LogisticsFlowDb")));
 
@@ -66,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<IRateAgreementRepository, RateAgreementRepository>();
         services.AddScoped<IRedactionService, PresidioRedactionService>();
         services.AddScoped<ITrackingRepository, TrackingRepository>();
+        services.AddScoped<ILaneHistoryRepository, LaneHistoryRepository>();
 
         return services;
     }

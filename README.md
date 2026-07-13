@@ -80,7 +80,7 @@ justification, not adopted for architectural novelty.
 | Phase 3: Order Tracking | Completed, not in public demo | Single-call, non-agentic (Option A); same DB dependency as Quotation |
 | Sonnet 5 migration | Completed | Model, token budget, and refusal-path handling verified across all three modules |
 | Phase 3 tech debt closure | Completed | `ShipmentMode` converted from string to enum; exception→status-code mapping verified correct |
-| Phase 3.5: Delay/risk assessment | Planned | Aggregate lane-history comparison (no cross-account data exposure); reviewed for Semantic Kernel adoption and found non-agentic — all data is deterministically fetched, no dynamic tool selection required, so it stays single-call per the Phase-Scoped AI Orchestration Exception |
+| Phase 3.5: Delay/risk assessment | Built, not yet merged to main | Aggregate lane-history comparison (no cross-account data exposure, minimum sample size of 5); deterministic risk-level computation in C#, AI composes only the plain-English suggested action; reviewed for Semantic Kernel adoption and found non-agentic, deferred to Phase 4 |
 | Phase 4: Booking | Planned | Agentic workflow phase |
 
 The current public deployment intentionally exposes the FAQ workflow
@@ -156,4 +156,4 @@ and [`docs/deployment.md`](docs/deployment.md).
 - **AI provider**: Claude Sonnet 5, behind a provider-agnostic `ILlmClient`
   interface (local-model routing via Ollama scoped for future Tier 3 work)
 - **Frontend**: React 18, TypeScript, Tailwind CSS v4, Vite
-- **Testing**: xUnit + Moq, unit/repository/integration layers, 64 tests passing
+- **Testing**: xUnit + Moq, unit/repository/integration layers, 84 tests passing
