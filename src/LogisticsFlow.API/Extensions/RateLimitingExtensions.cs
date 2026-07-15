@@ -1,4 +1,4 @@
-ï»¿using System.Globalization;
+using System.Globalization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
 
@@ -10,6 +10,7 @@ public static class RateLimitingExtensions
     public const string QuotationPolicy = "quotation-limit";
     public const string TrackingPolicy = "tracking-limit";
     public const string RiskAssessmentPolicy = "risk-assessment-limit";
+    public const string TokenPolicy = "token-limit";
 
     public static IServiceCollection AddApiRateLimiting(this IServiceCollection services)
     {
@@ -67,6 +68,23 @@ public static class RateLimitingExtensions
                     factory: _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 20,
+                        Window = TimeSpan.FromMinutes(1),
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0
+                    }));
+
+            // TokenPolicy is deliberately tighter than the other policies.
+            // This endpoint runs a BCrypt verify (intentionally slow) on
+            // every call and is the entry point for obtaining a JWT under
+            // this project's demo-credential distribution model (see
+            // CLAUDE.md) — a lower ceiling limits both compute cost and
+            // brute-force attempts against the demo account's secret.
+            options.AddPolicy(TokenPolicy, httpContext =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: ResolveClientIp(httpContext),
+                    factory: _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
                         Window = TimeSpan.FromMinutes(1),
                         QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                         QueueLimit = 0
