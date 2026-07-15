@@ -72,6 +72,7 @@ public class QuotationController : ControllerBase
 
     [HttpPost("token")]
     [AllowAnonymous]
+    [EnableRateLimiting(RateLimitingExtensions.TokenPolicy)]
     public async Task<IActionResult> GetToken(
         [FromBody] TokenRequestDto request, CancellationToken cancellationToken)
     {
