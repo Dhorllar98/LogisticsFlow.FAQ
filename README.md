@@ -15,13 +15,12 @@ and a provider-agnostic model interface.
 - Frontend: https://logistics-flow-faq.vercel.app
 - Verified endpoint: `POST /api/faq/ask`
 
-This public demo runs on Render's free tier with no keep-alive. The first
-request after inactivity spins up the container — subsequent requests are
-fast. This is a deliberate infrastructure tradeoff for the public demo.
-Quotation and Order Tracking are fully built and tested but require
-persistent database infrastructure not yet provisioned in production —
-see [`docs/deployment.md`](docs/deployment.md) for the migration path to
-Railway once funded.
+This public demo runs on Render's free tier with no keep-alive, backed by
+Neon (serverless PostgreSQL, also free tier with scale-to-zero compute).
+The first request after inactivity spins up both the container and the
+database — subsequent requests are fast. This is a deliberate
+infrastructure tradeoff for the public demo. All four modules — FAQ,
+Quotation, Tracking, and Risk Assessment — are live and fully database-backed.
 
 ## Verified Smoke Test
 
@@ -75,17 +74,16 @@ justification, not adopted for architectural novelty.
 | Phase | Status | Notes |
 |---|---|---|
 | Phase 1: FAQ | Live on Render | Public FAQ endpoint deployed and smoke-tested |
-| Phase 2: Quotation | Built, not in public demo | Requires persistent database infrastructure |
+| Phase 2: Quotation | Live on Render | Database-backed via Neon |
 | Phase 2.5: Multi-provider abstraction | Completed | Provider-agnostic `ILlmClient`; typed `ClaudeSettings` / `OllamaSettings` |
-| Phase 3: Order Tracking | Completed, not in public demo | Single-call, non-agentic (Option A); same DB dependency as Quotation |
+| Phase 3: Order Tracking | Live on Render | Single-call, non-agentic; database-backed via Neon |
 | Sonnet 5 migration | Completed | Model, token budget, and refusal-path handling verified across all three modules |
 | Phase 3 tech debt closure | Completed | `ShipmentMode` converted from string to enum; exception→status-code mapping verified correct |
-| Phase 3.5: Delay/risk assessment | Built, not yet merged to main | Aggregate lane-history comparison (no cross-account data exposure, minimum sample size of 5); deterministic risk-level computation in C#, AI composes only the plain-English suggested action; reviewed for Semantic Kernel adoption and found non-agentic, deferred to Phase 4 |
+| Phase 3.5: Delay/risk assessment | Live on Render | Aggregate-only lane-history comparison (no cross-account data exposure, minimum sample size of 5); deterministic risk-level computation in C#, AI composes only the plain-English suggested action; reviewed for Semantic Kernel adoption and found non-agentic, deferred to Phase 4 |
 | Phase 4: Booking | Planned | Agentic workflow phase |
 
-The current public deployment intentionally exposes the FAQ workflow
-only. Quotation and Tracking endpoints appear in Scalar but require a
-database and are not part of the current public demo.
+The current public deployment exposes all four modules: FAQ, Quotation,
+Tracking, and Risk Assessment — all database-backed via Neon.
 
 ## Architecture
 
@@ -130,10 +128,11 @@ Full architecture reasoning is in [`docs/architecture.md`](docs/architecture.md)
   fields, closing a cross-account data exposure risk found and fixed
   during development
 - Cross-account data access is architecturally excluded, not just
-  policy-restricted, wherever the design permits it — e.g. Phase 3.5's
-  planned lane-history comparison is deliberately scoped to aggregate,
-  depersonalized statistics rather than shipment-to-shipment comparison,
-  removing the tenant-boundary risk by design rather than by discipline
+  policy-restricted, wherever the design permits it — e.g. the risk
+  assessment module's lane-history comparison is deliberately scoped to
+  aggregate, depersonalized statistics rather than shipment-to-shipment
+  comparison, removing the tenant-boundary risk by design rather than by
+  discipline
 - API keys and secrets live in environment variables only, never in
   committed config
 - HTTP security headers (X-Content-Type-Options, X-Frame-Options,

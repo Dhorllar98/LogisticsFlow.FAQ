@@ -25,7 +25,7 @@ requirement.
 
 ## Phase 2 Scope: Quotation Module
 
-### Decision Lock: Single-Call, Non-Agentic (Option A)
+### Decision Lock: Single-Call, Non-Agentic
 Quotation is deliberately scoped as ONE rate-table/rules lookup, then ONE
 Claude call to compose the quote explanation. This is a conscious choice
 to keep Phase 2's complexity bounded: no live fuel-surcharge or customs-
@@ -68,7 +68,7 @@ The following remain Tier 1 (no redaction required):
 
 ## Phase 3 Scope: Order Tracking Module
 
-### Decision Lock: Single-Call, Non-Agentic (Option A) — Phase 3 v1
+### Decision Lock: Single-Call, Non-Agentic — Phase 3 v1
 Tracking v1 is deliberately scoped as ONE repository lookup (Shipment +
 TrackingEvent history) followed by ONE Claude call to compose a
 human-readable status summary. No chained reasoning, no tool-calling
@@ -175,7 +175,7 @@ single composition call - there is no branching decision for the AI to
 make. Semantic Kernel is NOT used here. Genuine SK adoption is deferred
 to Phase 4: Booking.
 
-### Decision Lock: Aggregate-Only Lane Comparison (Option C)
+### Decision Lock: Aggregate-Only Lane Comparison
 Lane-history comparison is deliberately scoped to pooled, depersonalized
 statistics - never shipment-to-shipment comparison. Grouping key is
 Carrier + Mode + OriginRegion + DestinationRegion (coarse, non-account-

@@ -162,11 +162,13 @@ database-backed client configuration.
 
 ## Deployment Boundary
 
-The current Render deployment is FAQ-only:
+The current Render deployment exposes all four modules:
 
-- No database required for FAQ
-- Startup migrations are commented out for the public demo path
-- Bundled JSON knowledge base is deployed with the API
+- Database-backed via Neon (serverless PostgreSQL) — FAQ, Quotation,
+  Tracking, and Risk Assessment are all live
+- Startup migrations run automatically in Production via
+  `db.Database.Migrate()` in `Program.cs`
+- Bundled JSON knowledge base is deployed with the API for FAQ
 - Scalar is available publicly for inspection and testing
 
 ## Resilience
@@ -184,8 +186,8 @@ The current Render deployment is FAQ-only:
 | Phase | Description | Status |
 |---|---|---|
 | Phase 1: FAQ | Knowledge-grounded logistics FAQ | Live on Render |
-| Phase 2: Quotation | Database-backed quotation workflow | Built, not in public demo |
+| Phase 2: Quotation | Database-backed quotation workflow | Live on Render |
 | Phase 2.5: Provider abstraction | Typed provider settings, `ILlmClient` abstraction | Completed |
-| Phase 3: Tracking | Shipment tracking workflow | Merged to main |
-| Phase 3.5: Delay/risk assessment | Aggregate lane-history comparison, deterministic risk level | Built, branch not yet merged |
+| Phase 3: Tracking | Shipment tracking workflow | Live on Render |
+| Phase 3.5: Delay/risk assessment | Aggregate lane-history comparison, deterministic risk level | Live on Render |
 | Phase 4: Booking | Agentic booking workflow with Semantic Kernel | Planned |
