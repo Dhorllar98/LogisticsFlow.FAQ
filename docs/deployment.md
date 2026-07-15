@@ -1,49 +1,66 @@
-# Deployment Guide — LogisticsFlow FAQ Assistant
+# Deployment Guide — LogisticsFlow AI Suite
 
 ## Current Public Deployment
 
-The public API demo is deployed on Render:
-
 - API base URL: https://logisticsflow-api.onrender.com
 - Scalar API explorer: https://logisticsflow-api.onrender.com/scalar/v1
-- Verified endpoint: `POST /api/faq/ask`
+- Frontend: https://logistics-flow-faq.vercel.app
 
-This deployment is intentionally scoped to the FAQ workflow and requires
-no persistent database.
+All four endpoints are live and database-backed:
+- `POST /api/faq/ask`
+- `POST /api/quotation/token` and quotation endpoints
+- `POST /api/tracking/status`
+- `POST /api/tracking/risk-assessment`
 
 ## Architecture
 
 - Backend: .NET 9 Web API deployed to Render (free tier)
+- Database: Neon (serverless PostgreSQL), free tier
 - API explorer: Scalar, served unconditionally by the backend
 - Knowledge base: bundled JSON file deployed with the API
-- Frontend: React + Vite, deployable separately to Vercel
-- Database-backed modules: not enabled in the current public demo
+- Frontend: React + Vite, deployed separately to Vercel
 
-## Render Free-Tier Tradeoff
+## Database: Neon
 
-The service runs on Render's free tier with no keep-alive configuration.
-After inactivity, the first request spins up the container. Subsequent
-requests are fast.
+The project uses [Neon](https://neon.tech) for PostgreSQL, chosen over
+a traditional always-on host for this stage of the project: generous
+free-tier storage for demo-scale data, and scale-to-zero compute that
+matches Render's own free-tier "sleeps when idle" behavior — consistent
+cost/latency story across the whole stack, with no risk of the database
+layer being the one component gating access to Quotation, Tracking, or
+Risk Assessment in the public demo.
 
-This is a deliberate demo-hosting tradeoff. The application is designed
-for zero-friction migration to Railway or Azure when persistent database
-infrastructure and stronger SLAs are required.
+### Two connection strings
 
-## Current Demo Scope
+Neon provides both a **direct** connection (straight to Postgres) and a
+**pooled** connection (routed through PgBouncer). Which one to use:
 
-Supported in the current public deployment:
+- **Direct** — migrations only (`dotnet ef database update`). Some DDL
+  operations behave unpredictably through a transaction-mode pooler.
+- **Pooled** — the running application's `ConnectionStrings__LogisticsFlowDb`
+  in Production. This is what Render is configured to use day-to-day.
 
-- `POST /api/faq/ask`
-- Scalar API documentation at `/scalar/v1`
-- Grounded FAQ responses with source citation
-- Confidence scoring
-- Escalation for low-confidence or ungrounded answers
+### Connection string format gotcha
 
-Not part of the current public demo:
+Neon's dashboard displays connection strings in URI format
+(`postgresql://user:pass@host/db?sslmode=require`). This format works
+fine with `psql`, but **Npgsql's `NpgsqlConnectionStringBuilder` does
+not reliably parse it** — it expects the classic keyword format instead.
 
-- Quotation endpoints (appear in Scalar but require a database)
-- Order Tracking (Phase 3, planned)
-- Booking (Phase 4, planned)
+Convert before use: Host=<neon-host>;Port=5432;Database=neondb;Username=neondb_owner;Password=<password>;SSL Mode=Require;Trust Server Certificate=true
+Also strip any `&channel_binding=require` parameter Neon appends by
+default — Npgsql does not recognize this keyword and will throw a
+`KeyNotFoundException` on connection-string parsing if it's present.
+`SSL Mode=Require` alone still provides TLS encryption; only the extra
+channel-binding check is lost.
+
+## Startup Migrations
+
+`Program.cs` runs `db.Database.Migrate()` automatically when
+`ASPNETCORE_ENVIRONMENT=Production`. This applies any pending EF
+migrations on every Production startup — a no-op if nothing is pending,
+so Render's free-tier cold-starts are not meaningfully slowed by this
+check. Development migrations are still run manually via `dotnet ef`.
 
 ## Required Environment Variables — Backend
 
@@ -53,17 +70,18 @@ Not part of the current public demo:
 | `ActiveProvider` | Provider selection — `Claude` or `Ollama` |
 | `Providers__Claude__ApiKey` | Claude API authentication key |
 | `Providers__Claude__BaseUrl` | Claude API endpoint URL |
-| `Providers__Claude__Model` | Model identifier, e.g. `claude-sonnet-4-6` |
+| `Providers__Claude__Model` | Model identifier — verify this matches the intended model before each deploy; a stale value here silently calls the wrong model with no error |
 | `Providers__Claude__AnthropicVersion` | Anthropic API version header |
 | `Providers__Claude__MaxTokens` | Max tokens per AI call |
 | `Jwt__Issuer` | JWT issuer identifier |
 | `Jwt__Audience` | JWT audience identifier |
 | `Jwt__AccessTokenExpiryMinutes` | Token lifetime in minutes |
-| `Jwt__SigningKey` | JWT signing secret — generate with PowerShell command below |
+| `Jwt__SigningKey` | JWT signing secret |
 | `AllowedOrigins__0` | Frontend origin permitted for CORS |
+| `ConnectionStrings__LogisticsFlowDb` | Neon **pooled** connection string, in keyword format (see above) |
 
-These values are configured in the hosting platform dashboard and must
-never be committed to `appsettings.json`.
+These values are configured in Render's dashboard and must never be
+committed to `appsettings.json`.
 
 **Generate a production JWT signing key:**
 
@@ -71,28 +89,13 @@ never be committed to `appsettings.json`.
 [Convert]::ToBase64String((1..64 | ForEach-Object { [byte](Get-Random -Max 256) }))
 ```
 
-## Database Configuration
-
-The current Render deployment does not require a database for the FAQ
-workflow. Startup migrations are intentionally disabled — the migration
-block in `Program.cs` is guarded and inactive for the current demo path.
-
-When enabling Quotation in a production environment, add:
-
-| Variable | Purpose |
-|---|---|
-| `ConnectionStrings__LogisticsFlowDb` | Npgsql-format PostgreSQL connection string |
-
-A production Quotation deployment requires a live PostgreSQL instance and
-a deliberate migration strategy.
-
 ## Required Environment Variables — Frontend
 
 | Variable | Purpose |
 |---|---|
-| `VITE_API_BASE_URL` | Backend URL, e.g. `https://logisticsflow-api.onrender.com` |
+| `VITE_API_BASE_URL` | Backend URL — `https://logisticsflow-api.onrender.com` |
 
-## Smoke Test
+## Smoke Tests
 
 ```powershell
 Invoke-RestMethod `
@@ -102,25 +105,27 @@ Invoke-RestMethod `
   -Body '{"query":"What is the difference between LTL and FTL shipping?"}'
 ```
 
-Expected response fields: `answer`, `category`, `confidenceScore`,
-`escalationBoolean`, `groundingSources`, `sessionId`.
-
-## Escalation Test
-
 ```powershell
 Invoke-RestMethod `
-  -Uri "https://logisticsflow-api.onrender.com/api/faq/ask" `
+  -Uri "https://logisticsflow-api.onrender.com/api/quotation/token" `
   -Method POST `
   -ContentType "application/json" `
-  -TimeoutSec 30 `
-  -Body '{"query":"Can you book my shipment from Lagos to London tomorrow?"}'
+  -Body '{"accountId":"ACC-DEMO-001","secret":"<demo-secret>"}'
 ```
 
-Expected: `confidenceScore: 0`, empty `groundingSources`,
-`escalationBoolean: true`.
+Use the returned token as a Bearer header to test `/api/tracking/status`
+and `/api/tracking/risk-assessment` against seeded demo data
+(`TRK-DEMO-001`, `DEMO-LANE-001` through `DEMO-LANE-005`).
+
+## Render Free-Tier Tradeoff
+
+The service runs on Render's free tier with no keep-alive. After
+inactivity, the first request spins up the container; subsequent
+requests are fast. This is a deliberate demo-hosting tradeoff.
 
 ## Future Production Path
 
-The application is structured to migrate to Railway, Azure, or another
-host with persistent PostgreSQL, enabled Quotation endpoints, a managed
-migration workflow, and stronger uptime SLAs when required.
+Both Render and Neon have paid tiers that remove the sleep/scale-to-zero
+behavior if this project ever needs always-on availability or higher
+compute. No architectural change is required to upgrade either — both
+are configuration/billing changes only.

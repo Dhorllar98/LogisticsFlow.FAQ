@@ -71,9 +71,11 @@ mechanism itself cannot re-identify a single shipment or account.
 
 ## Current Public Demo
 
-The current Render deployment stays inside the Tier 1 boundary. Quotation
-functionality exists in the codebase but is not enabled in the public demo
-because it requires persistent database infrastructure and Tier 2 controls.
+The current Render deployment, backed by Neon, exposes all classification
+tiers relevant to this project's public modules: Tier 1 (FAQ, derived
+lane-aggregate data) and Tier 2 (Quotation, Tracking, Risk Assessment's
+underlying shipment lookup) are both live, each governed by their
+documented redaction lifecycle.
 
 ## Secrets Handling
 
