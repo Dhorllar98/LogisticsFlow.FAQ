@@ -26,3 +26,11 @@ export interface DisplayMessage extends ChatMessage {
   confidenceScore?: number;
   groundingSources?: string[];
 }
+export interface LoginRequest {
+  accountId: string;
+  secret: string;
+}
+
+export interface LoginResponse {
+  token: string;
+}
