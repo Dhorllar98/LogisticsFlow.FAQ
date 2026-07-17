@@ -21,7 +21,7 @@ export function ChatWindow() {
   };
 
   return (
-    <div className="flex h-screen flex-col bg-white">
+    <div className="flex h-full flex-col bg-white">
       <header className="border-b border-slate-200 px-6 py-4">
         <h1 className="text-lg font-semibold text-slate-900">LogisticsFlow Support Assistant</h1>
         <p className="text-sm text-slate-500">Ask about Land, Sea, or Air freight — shipping rules, pricing, and tracking.</p>
