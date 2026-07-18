@@ -7,6 +7,7 @@ export function LoginPage() {
   const { login, isLoading, error } = useAuth();
   const [accountId, setAccountId] = useState("");
   const [secret, setSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -48,15 +49,25 @@ export function LoginPage() {
             <label htmlFor="secret" className="block text-sm font-medium text-slate-700">
               Secret
             </label>
-            <input
-              id="secret"
-              type="password"
-              value={secret}
-              onChange={(e) => setSecret(e.target.value)}
-              required
-              disabled={isLoading}
-              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="relative mt-1">
+              <input
+                id="secret"
+                type={showSecret ? "text" : "password"}
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+                required
+                disabled={isLoading}
+                className="w-full rounded-md border border-slate-300 px-3 py-2 pr-16 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowSecret((prev) => !prev)}
+                tabIndex={-1}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-medium text-slate-500 hover:text-slate-700"
+              >
+                {showSecret ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           {error && (
