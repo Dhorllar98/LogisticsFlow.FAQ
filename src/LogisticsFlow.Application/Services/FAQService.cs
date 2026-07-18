@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentValidation;
 using LogisticsFlow.Application.DTOs;
@@ -8,6 +8,7 @@ using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Domain.Enums;
 using LogisticsFlow.Domain.Exceptions;
 using LogisticsFlow.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace LogisticsFlow.Application.Services;
 
@@ -15,11 +16,14 @@ public class FAQService : IFAQService
 {
     private const double EscalationThreshold = 0.70;
 
-    // RESOLVED (Finding A, found in production via real Claude calls
-    // tonight): Claude occasionally wraps JSON output in markdown code
-    // fences (```json ... ```) despite the system prompt explicitly
-    // saying not to. This strips them before parsing. Matches a leading
-    // ```json or ``` and a trailing ```, tolerating surrounding whitespace.
+    private const string RetryInstruction =
+        "Your previous response was not valid JSON and could not be parsed. " +
+        "Respond again with ONLY the JSON object matching the schema given " +
+        "in the system prompt - no other text, no markdown formatting.";
+
+    // RESOLVED (Finding A): Claude occasionally wraps JSON output in
+    // markdown code fences (```json ... ```) despite the system prompt
+    // explicitly saying not to. This strips them before parsing.
     private static readonly Regex MarkdownFencePattern =
         new(@"^\s*```(?:json)?\s*\n?(.*?)\n?\s*```\s*$", RegexOptions.Singleline | RegexOptions.Compiled);
 
@@ -27,17 +31,20 @@ public class FAQService : IFAQService
     private readonly ILlmClient _claudeApiClient;
     private readonly IFAQCacheService _cacheService;
     private readonly IValidator<FAQResponseDto> _responseValidator;
+    private readonly ILogger<FAQService> _logger;
 
     public FAQService(
         IFAQRepository faqRepository,
         ILlmClient claudeApiClient,
         IFAQCacheService cacheService,
-        IValidator<FAQResponseDto> responseValidator)
+        IValidator<FAQResponseDto> responseValidator,
+        ILogger<FAQService> logger)
     {
         _faqRepository = faqRepository;
         _claudeApiClient = claudeApiClient;
         _cacheService = cacheService;
         _responseValidator = responseValidator;
+        _logger = logger;
     }
 
     public async Task<FAQResponseDto> AskAsync(FAQRequestDto request, CancellationToken cancellationToken = default)
@@ -53,13 +60,25 @@ public class FAQService : IFAQService
         var isCacheable = request.History is null || request.History.Count == 0;
         var normalizedQuery = request.Query.Trim().ToLowerInvariant();
 
-        string? rawResponse = isCacheable
+        string? cachedResponse = isCacheable
             ? await _cacheService.GetAsync(normalizedQuery, cancellationToken)
             : null;
 
-        var servedFromCache = rawResponse is not null;
+        var servedFromCache = cachedResponse is not null;
 
-        if (rawResponse is null)
+        string cleanedResponse;
+        RawAiResponse parsed;
+
+        if (cachedResponse is not null)
+        {
+            // Cache only ever stores responses that already parsed and
+            // validated successfully (see the cache-write comment below),
+            // so no retry path is needed here - a failure at this point
+            // would indicate cache corruption, not a model output issue.
+            cleanedResponse = StripMarkdownFence(cachedResponse);
+            parsed = DeserializeOrThrow(cleanedResponse);
+        }
+        else
         {
             var entries = await _faqRepository.GetAllAsync();
             var knowledgeBaseBlock = string.Join(
@@ -68,26 +87,56 @@ public class FAQService : IFAQService
 
             var systemPrompt = SystemPrompts.FaqAssistantV1.Replace("{{KNOWLEDGE_BASE}}", knowledgeBaseBlock);
 
-            rawResponse = await _claudeApiClient.SendMessageAsync(systemPrompt, session.Messages, cancellationToken);
-        }
+            var firstAttempt = await _claudeApiClient.SendMessageAsync(systemPrompt, session.Messages, cancellationToken);
+            var firstCleaned = StripMarkdownFence(firstAttempt);
 
-        // RESOLVED (Finding A): strip fences before parsing, regardless of
-        // whether the response came from cache or a fresh Claude call -
-        // a fenced response should never have been cached in the first
-        // place under the old code path, but stripping here is also a
-        // safe no-op against already-clean cached JSON.
-        var cleanedResponse = StripMarkdownFence(rawResponse);
+            // RESOLVED (Finding B, corrected approach): a prompt instruction
+            // to "respond with ONLY JSON" is a request the model can still
+            // ignore - it occasionally returned plain prose for out-of-scope
+            // or edge-case queries. An earlier attempt at fixing this via
+            // assistant message prefill was reverted: Claude Sonnet 5
+            // rejects prefill outright ("This model does not support
+            // assistant message prefill. The conversation must end with a
+            // user message.", confirmed via a live 400 from the API, not
+            // assumed). Retrying once with an explicit corrective user
+            // turn is the approach that actually works with this model -
+            // capped at exactly one retry, never a loop, consistent with
+            // this project's Infinite Loop Guard principle even outside
+            // a fully agentic flow.
+            if (TryDeserialize(firstCleaned, out var firstParsed))
+            {
+                cleanedResponse = firstCleaned;
+                parsed = firstParsed!;
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "FAQ response failed JSON parsing on first attempt. Retrying once with a corrective prompt. RawResponse={RawResponse}",
+                    firstAttempt);
 
-        RawAiResponse parsed;
-        try
-        {
-            parsed = JsonSerializer.Deserialize<RawAiResponse>(
-                cleanedResponse, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
-                ?? throw new JsonException("Deserialized response was null.");
-        }
-        catch (JsonException ex)
-        {
-            throw new BusinessRuleException($"AI returned malformed JSON output and could not be parsed: {ex.Message}");
+                var retryMessages = session.Messages
+                    .Append(new ChatMessage { Role = ChatRole.Assistant, Content = firstAttempt })
+                    .Append(new ChatMessage { Role = ChatRole.User, Content = RetryInstruction })
+                    .ToList();
+
+                var secondAttempt = await _claudeApiClient.SendMessageAsync(systemPrompt, retryMessages, cancellationToken);
+                var secondCleaned = StripMarkdownFence(secondAttempt);
+
+                if (TryDeserialize(secondCleaned, out var secondParsed))
+                {
+                    _logger.LogInformation("FAQ response parsed successfully on retry.");
+                    cleanedResponse = secondCleaned;
+                    parsed = secondParsed!;
+                }
+                else
+                {
+                    _logger.LogError(
+                        "FAQ response failed JSON parsing on retry as well. Giving up. RawResponse={RawResponse}",
+                        secondAttempt);
+                    throw new BusinessRuleException(
+                        "AI returned malformed JSON output and could not be parsed after one retry.");
+                }
+            }
         }
 
         if (!Enum.TryParse<LogisticCategory>(parsed.Category, ignoreCase: true, out var category))
@@ -115,13 +164,9 @@ public class FAQService : IFAQService
             throw new BusinessRuleException($"AI response failed validation: {errors}");
         }
 
-        // RESOLVED (Finding A): cache write moved to AFTER successful
-        // parse + validation, not before. The old code cached rawResponse
-        // immediately after the Claude call, meaning a malformed or
-        // fence-wrapped response got cached and then repeatedly served
-        // and re-failed on every subsequent identical query until the
-        // 24-hour TTL expired. Only ever cache a response we know is
-        // valid. Never re-cache something already served from cache.
+        // RESOLVED (Finding A): cache write only happens AFTER successful
+        // parse + validation, not before. Never re-cache something already
+        // served from cache.
         if (isCacheable && !servedFromCache)
         {
             await _cacheService.SetAsync(normalizedQuery, cleanedResponse, cancellationToken);
@@ -134,6 +179,35 @@ public class FAQService : IFAQService
     {
         var match = MarkdownFencePattern.Match(raw);
         return match.Success ? match.Groups[1].Value : raw;
+    }
+
+    private static RawAiResponse DeserializeOrThrow(string cleaned)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<RawAiResponse>(
+                cleaned, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                ?? throw new JsonException("Deserialized response was null.");
+        }
+        catch (JsonException ex)
+        {
+            throw new BusinessRuleException($"AI returned malformed JSON output and could not be parsed: {ex.Message}");
+        }
+    }
+
+    private static bool TryDeserialize(string cleaned, out RawAiResponse? parsed)
+    {
+        try
+        {
+            parsed = JsonSerializer.Deserialize<RawAiResponse>(
+                cleaned, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return parsed is not null;
+        }
+        catch (JsonException)
+        {
+            parsed = null;
+            return false;
+        }
     }
 
     private sealed record RawAiResponse(string Answer, string Category, double ConfidenceScore, List<string>? GroundingSources);
