@@ -1,1 +1,51 @@
 @import "tailwindcss";
+
+/*
+ * Shared tokens across Tracking and Risk Assessment. The two pages are
+ * literal tonal inversions of one another (paper/ink swap roles) rather
+ * than two unrelated palettes - see CLAUDE.md-adjacent design notes.
+ * Accent and signal colors are shared; surface/text are scoped per theme
+ * class below so the same shared input component can render correctly
+ * on either background without knowing which one it's on.
+ */
+:root {
+  --font-display: "Source Serif 4", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+
+  --accent: #963c28;
+  --signal-normal: #4c8567;
+  --signal-unknown: #6b7280;
+}
+
+.theme-manifest {
+  --surface: #eef1ed;
+  --on-surface: #16202b;
+  --divider: #8c7355;
+  --input-bg: #ffffff;
+  --input-border: #c7ccc5;
+  --input-text: #16202b;
+  --input-placeholder: #6b7280;
+  --input-focus-ring: #963c28;
+}
+
+.theme-signal {
+  --surface: #16202b;
+  --on-surface: #eef1ed;
+  --divider: #4a5a66;
+  --input-bg: #1e2a36;
+  --input-border: #3c4a56;
+  --input-text: #eef1ed;
+  --input-placeholder: #8b98a3;
+  --input-focus-ring: #e0b084;
+}
+.theme-manifest input::placeholder {
+  color: var(--input-placeholder);
+}
+.theme-signal input::placeholder {
+  color: var(--input-placeholder);
+}
+.theme-manifest input:focus,
+.theme-signal input:focus {
+  --tw-ring-color: var(--input-focus-ring);
+}
