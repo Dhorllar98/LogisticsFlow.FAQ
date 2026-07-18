@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using LogisticsFlow.Domain.Entities;
@@ -15,6 +15,14 @@ public class ClaudeApiClient : ILlmClient
     private readonly HttpClient _httpClient;
     private readonly ClaudeSettings _settings;
     private readonly ILogger<ClaudeApiClient> _logger;
+
+    // Explicit call-level timeout, independent of whatever HttpClient.Timeout
+    // is or isn't configured in DI. Was a known gap (security checklist
+    // section 2: "Every outbound AI HttpClient call has an explicit timeout"
+    // was unchecked) and the most likely cause of an observed endless-
+    // loading demo failure - a hung response with no timeout never errors,
+    // it just waits forever with no feedback to the caller.
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
     public ClaudeApiClient(
         HttpClient httpClient,
@@ -48,14 +56,21 @@ public class ClaudeApiClient : ILlmClient
         request.Headers.Add("x-api-key", _settings.ApiKey);
         request.Headers.Add("anthropic-version", _settings.AnthropicVersion);
 
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(RequestTimeout);
+
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.SendAsync(request, cancellationToken);
+            response = await _httpClient.SendAsync(request, timeoutCts.Token);
         }
         catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            _logger.LogError(ex, "Claude API call timed out.");
+            // Distinguishes "our own timeout fired" from "the caller cancelled
+            // the request" - both throw TaskCanceledException, but only the
+            // caller-cancellation case should skip the timeout-specific log
+            // and exception below.
+            _logger.LogError(ex, "Claude API call timed out after {TimeoutSeconds}s.", RequestTimeout.TotalSeconds);
             throw new LlmTimeoutException("The AI provider did not respond in time.", ex);
         }
 
