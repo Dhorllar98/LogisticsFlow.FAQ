@@ -17,6 +17,7 @@ export function NavBar() {
         <Link to="/" className={linkClass("/")}>FAQ</Link>
         <Link to="/tracking" className={linkClass("/tracking")}>Tracking</Link>
         <Link to="/risk-assessment" className={linkClass("/risk-assessment")}>Risk Assessment</Link>
+        <Link to="/quotation" className={linkClass("/quotation")}>Quotation</Link>
       </div>
 
       <div className="text-sm">

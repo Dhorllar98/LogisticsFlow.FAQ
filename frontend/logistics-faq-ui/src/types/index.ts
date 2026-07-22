@@ -64,6 +64,19 @@ export interface RiskAssessmentResponse {
   suggestedAction: string;
 }
 
+export interface QuotationRequest {
+  customerQuery?: string;
+}
+
+export interface QuotationResponse {
+  clientId: string;
+  negotiatedRate: number;
+  originAddress: string;
+  destinationAddress: string;
+  specialHandlingInstructions: string | null;
+  composedMessage: string;
+}
+
 // riskLevel arrives as an open string - RiskAssessmentResponseDto.RiskLevel
 // is a plain C# string, not an enum, so nothing constrains it at the type
 // level server-side either. Narrow it defensively rather than trusting it.
