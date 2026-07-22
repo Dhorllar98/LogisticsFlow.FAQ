@@ -20,7 +20,9 @@ Neon (serverless PostgreSQL, also free tier with scale-to-zero compute).
 The first request after inactivity spins up both the container and the
 database — subsequent requests are fast. This is a deliberate
 infrastructure tradeoff for the public demo. All four modules — FAQ,
-Quotation, Tracking, and Risk Assessment — are live and fully database-backed.
+Quotation, Tracking, and Risk Assessment — are live and fully database-backed,
+with a full frontend UI for all four (FAQ, Tracking, Risk Assessment,
+Quotation) reachable via the top navigation once logged in.
 
 ## Verified Smoke Test
 
@@ -51,7 +53,7 @@ attention away from complex client issues.
 
 ## The Solution
 
-Three integrated modules, each scoped deliberately rather than uniformly
+Four integrated modules, each scoped deliberately rather than uniformly
 over-engineered:
 
 - **FAQ** — a curated 33-entry knowledge base covering Land, Sea, Air,
@@ -59,12 +61,19 @@ over-engineered:
   knowledge boundary or escalates — it does not guess.
 - **Quotation** — account-scoped rate lookups composed into a
   customer-facing message, with a full Tier 2 redact/restore lifecycle
-  around every cloud AI call.
+  around every cloud AI call. The frontend exposes this as a single
+  "Get My Quote" action rather than a search form, matching the
+  backend's JWT-only identity model: there is nothing for the user to
+  look up, since each account resolves to its own single current rate
+  agreement automatically.
 - **Order Tracking** — account-scoped shipment status lookups composed
   into a plain-English summary, using the same redaction discipline as
   Quotation.
+- **Risk Assessment** — deterministic delay-risk computation against
+  pooled, depersonalized lane-history statistics, with the AI composing
+  only the plain-English suggested action.
 
-All three are single-call, non-agentic by explicit architectural
+All four are single-call, non-agentic by explicit architectural
 decision — documented in `CLAUDE.md` — with Semantic Kernel reserved for
 a future phase where chained AI reasoning has a genuine business
 justification, not adopted for architectural novelty.
@@ -80,10 +89,13 @@ justification, not adopted for architectural novelty.
 | Sonnet 5 migration | Completed | Model, token budget, and refusal-path handling verified across all three modules |
 | Phase 3 tech debt closure | Completed | `ShipmentMode` converted from string to enum; exception→status-code mapping verified correct |
 | Phase 3.5: Delay/risk assessment | Live on Render | Aggregate-only lane-history comparison (no cross-account data exposure, minimum sample size of 5); deterministic risk-level computation in C#, AI composes only the plain-English suggested action; reviewed for Semantic Kernel adoption and found non-agentic, deferred to Phase 4 |
+| Frontend: Tracking + Risk Assessment UI | Completed | Branded manifest/signal theme pair, shared theme-agnostic input component |
+| Frontend: Quotation UI | Completed | "Get My Quote" action pattern, reuses manifest theme |
 | Phase 4: Booking | Planned | Agentic workflow phase |
 
 The current public deployment exposes all four modules: FAQ, Quotation,
-Tracking, and Risk Assessment — all database-backed via Neon.
+Tracking, and Risk Assessment — all database-backed via Neon, with a
+complete frontend covering all four.
 
 ## Architecture
 
@@ -115,6 +127,9 @@ Full architecture reasoning is in [`docs/architecture.md`](docs/architecture.md)
 - Global exception handling with deliberate status-code mapping
 - Provider-agnostic AI client abstraction (`ILlmClient`), currently
   backed by Claude Sonnet 5
+- Full frontend coverage for all four live modules, with two distinct
+  branded themes (manifest/signal) sharing one CSS custom property
+  token set as literal tonal inversions of each other
 
 ## Security Considerations
 
