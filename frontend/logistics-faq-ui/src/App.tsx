@@ -5,6 +5,7 @@ import { RequireAuth } from "./components/RequireAuth";
 import { LoginPage } from "./pages/LoginPage";
 import { TrackingPage } from "./pages/TrackingPage";
 import { RiskAssessmentPage } from "./pages/RiskAssessmentPage";
+import { QuotationPage } from "./pages/QuotationPage";
 
 function App() {
   return (
@@ -27,6 +28,14 @@ function App() {
             element={
               <RequireAuth>
                 <RiskAssessmentPage />
+              </RequireAuth>
+            }
+          />
+          <Route
+            path="/quotation"
+            element={
+              <RequireAuth>
+                <QuotationPage />
               </RequireAuth>
             }
           />
