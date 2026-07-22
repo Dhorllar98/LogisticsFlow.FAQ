@@ -6,6 +6,7 @@ using LogisticsFlow.Domain.Entities;
 using LogisticsFlow.Domain.Enums;
 using LogisticsFlow.Domain.Exceptions;
 using LogisticsFlow.Domain.Interfaces;
+using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
 
@@ -17,16 +18,17 @@ public class FAQServiceTests
     private readonly Mock<ILlmClient> _claudeMock = new();
     private readonly Mock<IFAQCacheService> _cacheMock = new();
     private readonly Mock<IValidator<FAQResponseDto>> _responseValidatorMock = new();
+    private readonly Mock<ILogger<FAQService>> _loggerMock = new();
 
     private FAQService BuildService()
     {
-        return new FAQService(_repoMock.Object, _claudeMock.Object, _cacheMock.Object, _responseValidatorMock.Object);
+        return new FAQService(_repoMock.Object, _claudeMock.Object, _cacheMock.Object, _responseValidatorMock.Object, _loggerMock.Object);
     }
 
     private void SetupHappyPathDependencies(string claudeJsonResponse)
     {
         _repoMock.Setup(r => r.GetAllAsync())
-            .ReturnsAsync(new List<FAQEntry> { new() { Id = "L-001", Category = LogisticCategory.Land, Question = "Q", Answer = "A" } });
+            .ReturnsAsync(new List<FAQEntry> { new() { Id = "L-001", Category = LogisticCategory.Land, Question = "Q", Answer = "A" }});
 
         _cacheMock.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string?)null);
@@ -123,7 +125,7 @@ public class FAQServiceTests
     {
         var json = """{"answer":"FTL is full truckload.","category":"Land","confidenceScore":0.9,"groundingSources":["L-001"]}""";
         _repoMock.Setup(r => r.GetAllAsync())
-            .ReturnsAsync(new List<FAQEntry> { new() { Id = "L-001", Category = LogisticCategory.Land, Question = "Q", Answer = "A" } });
+            .ReturnsAsync(new List<FAQEntry> { new() { Id = "L-001", Category = LogisticCategory.Land, Question = "Q", Answer = "A" }});
         _cacheMock.Setup(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>())).ReturnsAsync((string?)null);
         _claudeMock.Setup(c => c.SendMessageAsync(It.IsAny<string>(), It.IsAny<IReadOnlyList<ChatMessage>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(json);
@@ -134,4 +136,3 @@ public class FAQServiceTests
             () => BuildService().AskAsync(new FAQRequestDto { Query = "What is FTL?" }));
     }
 }
-
