@@ -113,9 +113,21 @@ Invoke-RestMethod `
   -Body '{"accountId":"ACC-DEMO-001","secret":"<demo-secret>"}'
 ```
 
-Use the returned token as a Bearer header to test `/api/tracking/status`
-and `/api/tracking/risk-assessment` against seeded demo data
-(`TRK-DEMO-001`, `DEMO-LANE-001` through `DEMO-LANE-005`).
+Use the returned token as a Bearer header to test the remaining
+account-scoped endpoints:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "https://logisticsflow-api.onrender.com/api/quotation/quote" `
+  -Method POST `
+  -Headers @{ Authorization = "Bearer <token>" } `
+  -ContentType "application/json" `
+  -Body '{"customerQuery":"Any handling notes I should know about?"}'
+```
+
+`/api/tracking/status` and `/api/tracking/risk-assessment` follow the
+same Bearer-header pattern against seeded demo data (`TRK-DEMO-001`,
+`DEMO-LANE-001` through `DEMO-LANE-005`).
 
 ## Render Free-Tier Tradeoff
 
