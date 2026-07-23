@@ -38,6 +38,23 @@ Quotation's logic ever requires a second AI-involved step, this exception
 is void immediately and must be re-declared here explicitly before such
 logic is implemented — never adopted silently.
 
+### Addendum: Multi-Agreement Resolution (post-launch)
+The original single-agreement assumption below (one client, one
+current RateAgreement, resolved automatically) held until an account
+could plausibly have two or more active shipments/lanes at once. This
+was closed without reopening the Single-Call, Non-Agentic decision
+above: QuotationRequestDto gained an optional AgreementId, resolved
+via IRateAgreementRepository.GetByIdForClientAsync and always scoped
+to the caller's own ClientId from the JWT — never a bare-ID lookup.
+A new GET /api/quotation/agreements endpoint lists an account's
+currently effective agreements for client-side selection. Accounts
+with exactly one agreement see no behavior change; AgreementId
+remains optional and resolves automatically as before. Accounts with
+more than one must specify which agreement they mean, or the request
+fails with a 422 rather than guessing. This remains a single Claude
+compose call per request either way — the addition only changes
+which RateAgreement feeds that call, not the call pattern itself.
+
 ### Tier 2 Field Declaration (binding — see docs/data-classification.md)
 The following fields are Tier 2 and MUST be redacted via Presidio before
 any cloud Claude API call, and restored only after the response returns:
