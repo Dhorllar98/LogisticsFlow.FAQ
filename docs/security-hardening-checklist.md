@@ -64,13 +64,23 @@ Active once a module handles Tier 2 or Tier 3 data.
 - [ ] Rate limiter is load-tested, not only unit-tested
 - [x] GitLeaks or equivalent secret scanning run before pushing
 
+## 8. Response Headers
+
+- [x] `X-Content-Type-Options: nosniff` set on every response
+- [x] `X-Frame-Options: DENY` set on every response
+- [x] `Referrer-Policy: strict-origin-when-cross-origin` set on every response
+- [x] `Permissions-Policy` denies geolocation, microphone, and camera on every response
+- [x] Headers apply to error responses and the Scalar API explorer, not only successful controller results
+- [x] Verified present on a live production response (Scalar API explorer endpoint)
+
 ## Phase Status
 
 | Phase | Sections Active | Public Demo Status | Notes |
 |---|---|---|---|
-| Phase 1: FAQ | 1, 2, 4, 5, 6, 7 | Live on Render | No Tier 2/3 data; section 3 not applicable |
-| Phase 2: Quotation | 1, 2, 3, 4, 5, 6, 7 | Built, not in public demo | Requires persistent database; Tier 2 redact/restore lifecycle active; IDOR fix applied (AccountId scoped via JWT claims, not client input) |
+| Phase 1: FAQ | 1, 2, 4, 5, 6, 7, 8 | Live on Render | No Tier 2/3 data; section 3 not applicable |
+| Phase 2: Quotation | 1, 2, 3, 4, 5, 6, 7, 8 | Built, not in public demo | Requires persistent database; Tier 2 redact/restore lifecycle active; IDOR fix applied (AccountId scoped via JWT claims, not client input); multi-agreement resolution added post-launch, AgreementId always scoped to the caller's own account, never a bare-ID lookup |
 | Phase 2.5: Hardening | 1, 2, 4, 5, 6, 7 | Completed | JWT added, rate-limit policies split, provider-agnostic settings, middleware order fixed |
-| Phase 3: Tracking | 1, 2, 3, 4, 5, 6, 7 | Live on Render | Tier 2 redact/restore lifecycle active (tracking number, account ID, shipment addresses, consignee); single-call, non-agentic v1 per CLAUDE.md, SK exception holds until Phase 3.5. Tech debt closed: `ShipmentMode` converted from string to enum (Domain/Infrastructure); exception→status-code mapping for `LlmRateLimitException`/`LlmTimeoutException`/`LlmInvalidResponseException` confirmed already correctly wired to 429/504/502 in `GlobalExceptionMiddleware`. HTTP security headers item remains open — logged for its own dedicated fix, not phase-blocking. |
-| Phase 3.5: Risk Assessment | 1, 2, 3, 4, 5, 6, 7 | Live on Render | Reviewed for SK adoption at kickoff, found non-agentic (deterministic data pipeline, no dynamic tool selection) — SK deferred to Phase 4. Aggregate-only lane comparison: pooled, depersonalized statistics across all clients on a lane, grouped by coarse region (never exact address), minimum sample size of 5 before surfacing an average. Risk level computed deterministically in C#, never AI-decided. No new Tier 2 fields; new Tier 1 derived fields only (region, aggregate stats). 84 tests passing project-wide. |
+| Phase 3: Tracking | 1, 2, 3, 4, 5, 6, 7, 8 | Live on Render | Tier 2 redact/restore lifecycle active (tracking number, account ID, shipment addresses, consignee); single-call, non-agentic v1 per CLAUDE.md, SK exception holds until Phase 3.5. Tech debt closed: `ShipmentMode` converted from string to enum (Domain/Infrastructure); exception→status-code mapping for `LlmRateLimitException`/`LlmTimeoutException`/`LlmInvalidResponseException` confirmed already correctly wired to 429/504/502 in `GlobalExceptionMiddleware`. |
+| Phase 3.5: Risk Assessment | 1, 2, 3, 4, 5, 6, 7, 8 | Live on Render | Reviewed for SK adoption at kickoff, found non-agentic (deterministic data pipeline, no dynamic tool selection) — SK deferred to Phase 4. Aggregate-only lane comparison: pooled, depersonalized statistics across all clients on a lane, grouped by coarse region (never exact address), minimum sample size of 5 before surfacing an average. Risk level computed deterministically in C#, never AI-decided. No new Tier 2 fields; new Tier 1 derived fields only (region, aggregate stats). 84 tests passing project-wide. |
+| HTTP Security Headers | 8 | Live on Render | Closed - was the one open item carried from Phase 3's original tech-debt review through Phase 3.5. `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` added via dedicated middleware registered immediately after global exception handling. Confirmed present on a live production response. |
 | Phase 4: Booking | TBD at kickoff | Planned | Agentic workflow; genuine dynamic tool selection (carrier/date/pricing fallback), Infinite Loop Guard and tool-output trust controls become active for the first time |
