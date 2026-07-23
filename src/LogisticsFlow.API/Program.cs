@@ -1,4 +1,4 @@
-﻿using LogisticsFlow.API.Extensions;
+using LogisticsFlow.API.Extensions;
 using LogisticsFlow.API.Middleware;
 using LogisticsFlow.Application;
 using LogisticsFlow.Infrastructure;
@@ -85,6 +85,7 @@ if (app.Environment.IsProduction())
 }
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseSecurityHeaders();
 
 app.MapOpenApi();
 app.MapScalarApiReference();
