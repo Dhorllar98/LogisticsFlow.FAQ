@@ -63,9 +63,9 @@ over-engineered:
   customer-facing message, with a full Tier 2 redact/restore lifecycle
   around every cloud AI call. The frontend exposes this as a single
   "Get My Quote" action rather than a search form, matching the
-  backend's JWT-only identity model: there is nothing for the user to
-  look up, since each account resolves to its own single current rate
-  agreement automatically.
+  backend's JWT-only identity model. Accounts with a single active rate
+  agreement resolve automatically; accounts with more than one are
+  presented a lane selector before requesting a quote.
 - **Order Tracking** — account-scoped shipment status lookups composed
   into a plain-English summary, using the same redaction discipline as
   Quotation.
@@ -91,6 +91,8 @@ justification, not adopted for architectural novelty.
 | Phase 3.5: Delay/risk assessment | Live on Render | Aggregate-only lane-history comparison (no cross-account data exposure, minimum sample size of 5); deterministic risk-level computation in C#, AI composes only the plain-English suggested action; reviewed for Semantic Kernel adoption and found non-agentic, deferred to Phase 4 |
 | Frontend: Tracking + Risk Assessment UI | Completed | Branded manifest/signal theme pair, shared theme-agnostic input component |
 | Frontend: Quotation UI | Completed | "Get My Quote" action pattern, reuses manifest theme |
+| Quotation multi-agreement support | Completed | Optional `AgreementId` on the request, JWT-scoped resolution, lane-selector UI for accounts with 2+ active agreements. Verified against live single-agreement seed data; the 2+-agreement selector path is implemented but not yet exercised against real multi-agreement data |
+| HTTP security headers | Completed | `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` added via middleware, confirmed present on live production responses |
 | Phase 4: Booking | Planned | Agentic workflow phase |
 
 The current public deployment exposes all four modules: FAQ, Quotation,
@@ -115,6 +117,10 @@ Full architecture reasoning is in [`docs/architecture.md`](docs/architecture.md)
   score when grounding sources are empty
 - Account-scoped Quotation and Tracking access — enforced at the query
   level via JWT claims, never via client-supplied identifiers
+- Quotation supports accounts with multiple active rate agreements: a
+  JWT-scoped agreement list endpoint backs a lane-selector UI, with
+  fully backward-compatible automatic resolution for the common
+  single-agreement case
 - Explicit Tier 1 / Tier 2 / Tier 3 data classification with a
   request-lifetime-only redaction lifecycle around every cloud AI call
 - FluentValidation on every request and response, with a consistent
@@ -130,6 +136,10 @@ Full architecture reasoning is in [`docs/architecture.md`](docs/architecture.md)
 - Full frontend coverage for all four live modules, with two distinct
   branded themes (manifest/signal) sharing one CSS custom property
   token set as literal tonal inversions of each other
+- Baseline HTTP security headers (`X-Content-Type-Options`,
+  `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) applied
+  to every response, including error responses and the Scalar API
+  explorer
 
 ## Security Considerations
 
@@ -142,6 +152,10 @@ Full architecture reasoning is in [`docs/architecture.md`](docs/architecture.md)
   from validated JWT claims — never from client-supplied request
   fields, closing a cross-account data exposure risk found and fixed
   during development
+- Quotation's optional `AgreementId` field is never a bare-ID lookup —
+  it is always resolved scoped to the caller's own account, so
+  supplying another account's agreement ID returns the same not-found
+  result as an invalid one
 - Cross-account data access is architecturally excluded, not just
   policy-restricted, wherever the design permits it — e.g. the risk
   assessment module's lane-history comparison is deliberately scoped to
@@ -150,10 +164,10 @@ Full architecture reasoning is in [`docs/architecture.md`](docs/architecture.md)
   discipline
 - API keys and secrets live in environment variables only, never in
   committed config
-- HTTP security headers (X-Content-Type-Options, X-Frame-Options,
-  Referrer-Policy, Permissions-Policy) are a known, logged gap — not
-  yet implemented; tracked in
-  [`docs/security-hardening-checklist.md`](docs/security-hardening-checklist.md)
+- HTTP security headers (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`) are applied to every
+  response via dedicated middleware, registered immediately after
+  global exception handling so they apply even to error responses
 
 See [`docs/security-hardening-checklist.md`](docs/security-hardening-checklist.md)
 and [`docs/deployment.md`](docs/deployment.md).
