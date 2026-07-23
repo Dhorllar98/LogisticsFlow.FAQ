@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
 using LogisticsFlow.Application.Prompts;
@@ -9,19 +9,27 @@ using LogisticsFlow.Domain.Interfaces;
 namespace LogisticsFlow.Application.Services;
 
 /// <summary>
-/// Orchestrates a single-call, non-agentic quotation flow (Option A —
-/// one rate lookup, one Claude compose call, no Semantic Kernel, per
-/// CLAUDE.md Phase 2 section).
+/// Orchestrates a single-call, non-agentic quotation flow: one rate
+/// lookup, then one Claude compose call, with no Semantic Kernel - per
+/// the Phase-Scoped AI Orchestration Exception declared in CLAUDE.md's
+/// Phase 2 section.
 ///
 /// Flow: lookup client + rate agreement -> redact Tier 2 fields ->
 /// single Claude compose call on redacted text -> restore -> validate ->
 /// return real (unredacted) data to the requesting client, who owns it.
 ///
 /// accountId is supplied by the caller from the authenticated JWT's
-/// claims — never from the request body. See QuotationRequestDto for
+/// claims - never from the request body. See QuotationRequestDto for
 /// why AccountId was removed from client-facing input.
 ///
-/// The RedactionMap is held locally for this method's lifetime only —
+/// Multi-agreement support: if request.AgreementId is set, the specific
+/// agreement is resolved scoped to this client (never a bare-ID lookup).
+/// If unset, falls back to GetCurrentForClientAsync for backward
+/// compatibility with single-agreement accounts. If unset AND the
+/// client has more than one currently effective agreement, this is a
+/// business-rule failure (ambiguous request) - 422, not a guess.
+///
+/// The RedactionMap is held locally for this method's lifetime only -
 /// never cached, logged, or persisted, per data-classification.md.
 /// </summary>
 public class QuotationService : IQuotationService
@@ -53,11 +61,8 @@ public class QuotationService : IQuotationService
             ?? throw new RateAgreementNotFoundException(
                 $"No client found for account '{accountId}'.");
 
-        var rateAgreement = await _rateAgreementRepository.GetCurrentForClientAsync(client.Id, cancellationToken)
-            ?? throw RateAgreementNotFoundException.ForClient(client.Id);
+        var rateAgreement = await ResolveAgreementAsync(client.Id, request.AgreementId, cancellationToken);
 
-        // Build the plain-text payload containing Tier 2 fields, then redact
-        // it as a single block so all tokens come from one consistent map.
         var plainTextPayload = BuildPlainTextPayload(client, rateAgreement, request.CustomerQuery);
         var (redactedPayload, redactionMap) = await _redactionService.RedactAsync(plainTextPayload, cancellationToken);
 
@@ -69,10 +74,6 @@ public class QuotationService : IQuotationService
         var rawResponse = await _llmClient.SendMessageAsync(
             SystemPrompts.ComposeQuoteV1, history, cancellationToken);
 
-        // RedactionFailureException propagates unhandled here by design —
-        // GlobalExceptionMiddleware maps it to 422. No try/catch needed in
-        // this service or the controller; that's the whole point of the
-        // centralized exception middleware pattern already in use.
         var composedMessage = await _redactionService.RestoreAsync(rawResponse, redactionMap, cancellationToken);
 
         var response = new QuotationResponseDto
@@ -93,6 +94,46 @@ public class QuotationService : IQuotationService
         }
 
         return response;
+    }
+
+    public async Task<IReadOnlyList<RateAgreementSummaryDto>> GetAgreementsAsync(
+        string accountId, CancellationToken cancellationToken = default)
+    {
+        var client = await _clientRepository.GetByAccountIdAsync(accountId, cancellationToken)
+            ?? throw new RateAgreementNotFoundException(
+                $"No client found for account '{accountId}'.");
+
+        var agreements = await _rateAgreementRepository.GetAllCurrentForClientAsync(client.Id, cancellationToken);
+
+        return agreements.Select(a => new RateAgreementSummaryDto
+        {
+            AgreementId = a.Id,
+            OriginAddress = a.OriginAddress,
+            DestinationAddress = a.DestinationAddress,
+            NegotiatedRate = a.NegotiatedRate
+        }).ToList();
+    }
+
+    private async Task<RateAgreement> ResolveAgreementAsync(
+        Guid clientId, Guid? requestedAgreementId, CancellationToken ct)
+    {
+        if (requestedAgreementId.HasValue)
+        {
+            return await _rateAgreementRepository.GetByIdForClientAsync(clientId, requestedAgreementId.Value, ct)
+                ?? throw RateAgreementNotFoundException.ForClient(clientId);
+        }
+
+        var allCurrent = await _rateAgreementRepository.GetAllCurrentForClientAsync(clientId, ct);
+
+        if (allCurrent.Count == 0)
+            throw RateAgreementNotFoundException.ForClient(clientId);
+
+        if (allCurrent.Count > 1)
+            throw new BusinessRuleException(
+                "This account has more than one active rate agreement. " +
+                "Call GET /api/quotation/agreements and specify AgreementId.");
+
+        return allCurrent[0];
     }
 
     private static string BuildPlainTextPayload(Client client, RateAgreement rate, string? customerQuery)

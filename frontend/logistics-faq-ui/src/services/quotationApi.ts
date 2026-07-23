@@ -1,7 +1,21 @@
-// src/services/quotationApi.ts
-import type { QuotationRequest, QuotationResponse } from "../types";
+import type { QuotationAgreementSummary, QuotationRequest, QuotationResponse } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5148";
+
+export async function getQuotationAgreements(token: string): Promise<QuotationAgreementSummary[]> {
+  const response = await fetch(`${API_BASE_URL}/api/quotation/agreements`, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null);
+    const message = errorBody?.error ?? `Request failed with status ${response.status}`;
+    throw new Error(message);
+  }
+
+  return response.json();
+}
 
 export async function getQuotation(
   request: QuotationRequest,

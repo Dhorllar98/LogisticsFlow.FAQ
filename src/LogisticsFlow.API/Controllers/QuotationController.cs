@@ -38,6 +38,28 @@ public class QuotationController : ControllerBase
     }
 
     /// <summary>
+    /// Lists every currently effective rate agreement for the
+    /// authenticated account. Used by the frontend to present a
+    /// selector when an account has more than one active agreement,
+    /// before calling POST /api/quotation/quote with a chosen
+    /// AgreementId.
+    /// </summary>
+    [HttpGet("agreements")]
+    [Authorize]
+    public async Task<ActionResult<IReadOnlyList<RateAgreementSummaryDto>>> GetAgreements(
+        CancellationToken cancellationToken)
+    {
+        var accountId = User.FindFirstValue(ClaimTypes.Name);
+        if (string.IsNullOrWhiteSpace(accountId))
+        {
+            return Unauthorized(new { error = "Token does not contain a valid account identifier." });
+        }
+
+        var agreements = await _quotationService.GetAgreementsAsync(accountId, cancellationToken);
+        return Ok(agreements);
+    }
+
+    /// <summary>
     /// RESOLVED (security fix): accountId now comes exclusively from the
     /// authenticated JWT's claims, matching TrackingController's pattern.
     /// Previously QuotationRequestDto carried a client-supplied AccountId
@@ -80,9 +102,6 @@ public class QuotationController : ControllerBase
 
         if (client is null || !BCrypt.Net.BCrypt.Verify(request.Secret, client.SecretHash))
         {
-            // Deliberately identical response whether the account doesn't
-            // exist or the secret is wrong - distinguishing the two would
-            // let an attacker enumerate valid AccountIds.
             return Unauthorized(new { error = "Invalid account or secret." });
         }
 
