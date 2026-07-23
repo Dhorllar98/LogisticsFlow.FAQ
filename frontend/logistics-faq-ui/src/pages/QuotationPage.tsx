@@ -1,16 +1,37 @@
-// src/pages/QuotationPage.tsx
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { getQuotation } from "../services/quotationApi";
+import { getQuotation, getQuotationAgreements } from "../services/quotationApi";
 import { StampBadge } from "../components/StampBadge";
-import type { QuotationResponse } from "../types";
+import type { QuotationAgreementSummary, QuotationResponse } from "../types";
 
 export function QuotationPage() {
   const { token, logout } = useAuth();
+  const [agreements, setAgreements] = useState<QuotationAgreementSummary[]>([]);
+  const [selectedAgreementId, setSelectedAgreementId] = useState<string>("");
+  const [agreementsLoading, setAgreementsLoading] = useState(true);
+  const [agreementsError, setAgreementsError] = useState<string | null>(null);
+
   const [customerQuery, setCustomerQuery] = useState("");
   const [result, setResult] = useState<QuotationResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) return;
+    setAgreementsLoading(true);
+    setAgreementsError(null);
+    getQuotationAgreements(token)
+      .then((list) => {
+        setAgreements(list);
+        if (list.length === 1) {
+          setSelectedAgreementId(list[0].agreementId);
+        }
+      })
+      .catch((err) => {
+        setAgreementsError(err instanceof Error ? err.message : "Failed to load agreements.");
+      })
+      .finally(() => setAgreementsLoading(false));
+  }, [token]);
 
   const handleGetQuote = async () => {
     if (!token) return;
@@ -19,7 +40,10 @@ export function QuotationPage() {
     setResult(null);
     try {
       const response = await getQuotation(
-        { customerQuery: customerQuery.trim() || undefined },
+        {
+          agreementId: selectedAgreementId || undefined,
+          customerQuery: customerQuery.trim() || undefined,
+        },
         token
       );
       setResult(response);
@@ -36,6 +60,9 @@ export function QuotationPage() {
       )
     : null;
 
+  const needsSelection = agreements.length > 1;
+  const canRequestQuote = !needsSelection || selectedAgreementId !== "";
+
   return (
     <div
       className="theme-manifest h-full overflow-y-auto"
@@ -47,34 +74,77 @@ export function QuotationPage() {
             Quotation
           </h1>
           <p className="mt-2 text-sm" style={{ opacity: 0.7 }}>
-            Get your current negotiated rate agreement, composed into a
-            plain-English summary.
+            Get a negotiated rate agreement, composed into a plain-English
+            summary.
           </p>
         </header>
 
-        <div className="flex flex-col gap-3">
-          <textarea
-            value={customerQuery}
-            onChange={(e) => setCustomerQuery(e.target.value)}
-            placeholder="Optional — anything you'd like confirmed alongside your quote (e.g. handling instructions)"
-            maxLength={500}
-            rows={3}
-            className="rounded-md border px-3 py-2 text-sm"
-            style={{
-              backgroundColor: "var(--input-bg)",
-              borderColor: "var(--input-border)",
-              color: "var(--input-text)",
-            }}
-          />
-          <button
-            onClick={handleGetQuote}
-            disabled={isLoading}
-            className="self-start rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50"
+        {agreementsLoading && (
+          <p className="text-sm" style={{ opacity: 0.7 }}>Loading your agreements…</p>
+        )}
+
+        {agreementsError && (
+          <div
+            className="rounded-md border px-4 py-3 text-sm"
             style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
           >
-            {isLoading ? "Fetching quote…" : "Get My Quote"}
-          </button>
-        </div>
+            {agreementsError}
+          </div>
+        )}
+
+        {!agreementsLoading && !agreementsError && needsSelection && (
+          <div className="mb-6 flex flex-col gap-2">
+            <label className="text-sm font-medium" style={{ opacity: 0.7 }}>
+              This account has {agreements.length} active rate agreements — choose one:
+            </label>
+            <select
+              value={selectedAgreementId}
+              onChange={(e) => setSelectedAgreementId(e.target.value)}
+              className="rounded-md border px-3 py-2 text-sm font-mono"
+              style={{
+                backgroundColor: "var(--input-bg)",
+                borderColor: "var(--input-border)",
+                color: "var(--input-text)",
+              }}
+            >
+              <option value="">— Select a lane —</option>
+              {agreements.map((a) => (
+                <option key={a.agreementId} value={a.agreementId}>
+                  {a.originAddress} → {a.destinationAddress} ({new Intl.NumberFormat(undefined, {
+                    style: "currency",
+                    currency: "USD",
+                  }).format(a.negotiatedRate)})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!agreementsLoading && !agreementsError && (
+          <div className="flex flex-col gap-3">
+            <textarea
+              value={customerQuery}
+              onChange={(e) => setCustomerQuery(e.target.value)}
+              placeholder="Optional — anything you'd like confirmed alongside your quote (e.g. handling instructions)"
+              maxLength={500}
+              rows={3}
+              className="rounded-md border px-3 py-2 text-sm"
+              style={{
+                backgroundColor: "var(--input-bg)",
+                borderColor: "var(--input-border)",
+                color: "var(--input-text)",
+              }}
+            />
+            <button
+              onClick={handleGetQuote}
+              disabled={isLoading || !canRequestQuote}
+              className="self-start rounded-md border px-4 py-2 text-sm font-medium disabled:opacity-50"
+              style={{ borderColor: "var(--accent)", color: "var(--accent)" }}
+            >
+              {isLoading ? "Fetching quote…" : "Get My Quote"}
+            </button>
+          </div>
+        )}
 
         {error && (
           <div

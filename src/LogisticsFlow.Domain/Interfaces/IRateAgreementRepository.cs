@@ -4,9 +4,9 @@ namespace LogisticsFlow.Domain.Interfaces;
 
 public interface IRateAgreementRepository
 {
-    /// <summary>
-    /// Returns the currently effective rate agreement for the given client,
-    /// or null if none exists (caller decides whether that's a 404).
-    /// </summary>
     Task<RateAgreement?> GetCurrentForClientAsync(Guid clientId, CancellationToken ct = default);
+
+    Task<IReadOnlyList<RateAgreement>> GetAllCurrentForClientAsync(Guid clientId, CancellationToken ct = default);
+
+    Task<RateAgreement?> GetByIdForClientAsync(Guid clientId, Guid agreementId, CancellationToken ct = default);
 }

@@ -8,4 +8,13 @@ public interface IQuotationService
         QuotationRequestDto request,
         string accountId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Lists every currently effective rate agreement for the
+    /// authenticated account, for use in a multi-agreement selector
+    /// before calling GetQuotationAsync.
+    /// </summary>
+    Task<IReadOnlyList<RateAgreementSummaryDto>> GetAgreementsAsync(
+        string accountId,
+        CancellationToken cancellationToken = default);
 }

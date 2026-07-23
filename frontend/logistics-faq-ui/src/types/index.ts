@@ -65,6 +65,7 @@ export interface RiskAssessmentResponse {
 }
 
 export interface QuotationRequest {
+  agreementId?: string;
   customerQuery?: string;
 }
 
@@ -75,6 +76,13 @@ export interface QuotationResponse {
   destinationAddress: string;
   specialHandlingInstructions: string | null;
   composedMessage: string;
+}
+
+export interface QuotationAgreementSummary {
+  agreementId: string;
+  originAddress: string;
+  destinationAddress: string;
+  negotiatedRate: number;
 }
 
 // riskLevel arrives as an open string - RiskAssessmentResponseDto.RiskLevel
