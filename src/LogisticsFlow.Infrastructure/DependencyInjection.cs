@@ -20,6 +20,7 @@ public static class DependencyInjection
     {
         services.Configure<ClaudeSettings>(configuration.GetSection("Providers:Claude"));
         services.Configure<OllamaSettings>(configuration.GetSection("Providers:Ollama"));
+        services.Configure<GeminiSettings>(configuration.GetSection("Providers:Gemini"));
         services.Configure<JwtSettings>(configuration.GetSection("Jwt"));
 
         services.AddMemoryCache();
@@ -32,6 +33,21 @@ public static class DependencyInjection
         {
             case "Ollama":
                 services.AddHttpClient<ILlmClient, OllamaApiClient>();
+                break;
+
+            case "Gemini":
+                services.AddHttpClient<ILlmClient, GeminiApiClient>()
+                    .AddStandardResilienceHandler(options =>
+                    {
+                        var defaultPredicate = options.Retry.ShouldHandle;
+                        options.Retry.ShouldHandle = async args =>
+                        {
+                            if (await defaultPredicate(args))
+                                return true;
+
+                            return args.Outcome.Result?.StatusCode == HttpStatusCode.TooManyRequests;
+                        };
+                    });
                 break;
 
             case "Claude":
