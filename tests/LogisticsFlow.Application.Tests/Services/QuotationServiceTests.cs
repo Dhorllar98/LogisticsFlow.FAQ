@@ -61,7 +61,8 @@ public class QuotationServiceTests
     {
         var client = MakeClient();
         _clientRepo.Setup(r => r.GetByAccountIdAsync(client.AccountId, default)).ReturnsAsync(client);
-        _rateRepo.Setup(r => r.GetCurrentForClientAsync(client.Id, default)).ReturnsAsync((RateAgreement?)null);
+        _rateRepo.Setup(r => r.GetAllCurrentForClientAsync(client.Id, default))
+            .ReturnsAsync(new List<RateAgreement>());
 
         var request = new QuotationRequestDto();
 
@@ -84,7 +85,8 @@ public class QuotationServiceTests
 
         _clientRepo.Setup(r => r.GetByAccountIdAsync("ACC-A", default)).ReturnsAsync(clientA);
         _clientRepo.Setup(r => r.GetByAccountIdAsync("ACC-B", default)).ReturnsAsync(clientB);
-        _rateRepo.Setup(r => r.GetCurrentForClientAsync(clientA.Id, default)).ReturnsAsync(rateA);
+        _rateRepo.Setup(r => r.GetAllCurrentForClientAsync(clientA.Id, default))
+            .ReturnsAsync(new List<RateAgreement> { rateA });
 
         _redaction.Setup(r => r.RedactAsync(It.IsAny<string>(), default))
             .ReturnsAsync(("redacted", RedactionMap.Empty));
@@ -96,7 +98,7 @@ public class QuotationServiceTests
         var response = await _sut.GetQuotationAsync(new QuotationRequestDto(), "ACC-A");
 
         Assert.Equal(clientA.Id, response.ClientId);
-        _rateRepo.Verify(r => r.GetCurrentForClientAsync(clientB.Id, default), Times.Never);
+        _rateRepo.Verify(r => r.GetAllCurrentForClientAsync(clientB.Id, default), Times.Never);
     }
 
     [Fact]
@@ -106,7 +108,8 @@ public class QuotationServiceTests
         var rateAgreement = MakeRateAgreement(client.Id);
 
         _clientRepo.Setup(r => r.GetByAccountIdAsync(client.AccountId, default)).ReturnsAsync(client);
-        _rateRepo.Setup(r => r.GetCurrentForClientAsync(client.Id, default)).ReturnsAsync(rateAgreement);
+        _rateRepo.Setup(r => r.GetAllCurrentForClientAsync(client.Id, default))
+            .ReturnsAsync(new List<RateAgreement> { rateAgreement });
 
         const string redactedPayload = "Company: [REDACTED_0]\nOrigin: [REDACTED_1]\nDestination: [REDACTED_2]\nRate: [REDACTED_3]";
         var map = new RedactionMap(new Dictionary<string, string>
@@ -157,7 +160,8 @@ public class QuotationServiceTests
         var rateAgreement = MakeRateAgreement(client.Id);
 
         _clientRepo.Setup(r => r.GetByAccountIdAsync(client.AccountId, default)).ReturnsAsync(client);
-        _rateRepo.Setup(r => r.GetCurrentForClientAsync(client.Id, default)).ReturnsAsync(rateAgreement);
+        _rateRepo.Setup(r => r.GetAllCurrentForClientAsync(client.Id, default))
+            .ReturnsAsync(new List<RateAgreement> { rateAgreement });
 
         var map = RedactionMap.Empty;
         _redaction.Setup(r => r.RedactAsync(It.IsAny<string>(), default))
@@ -183,7 +187,8 @@ public class QuotationServiceTests
         var rateAgreement = MakeRateAgreement(client.Id);
 
         _clientRepo.Setup(r => r.GetByAccountIdAsync(client.AccountId, default)).ReturnsAsync(client);
-        _rateRepo.Setup(r => r.GetCurrentForClientAsync(client.Id, default)).ReturnsAsync(rateAgreement);
+        _rateRepo.Setup(r => r.GetAllCurrentForClientAsync(client.Id, default))
+            .ReturnsAsync(new List<RateAgreement> { rateAgreement });
 
         var map = RedactionMap.Empty;
         _redaction.Setup(r => r.RedactAsync(It.IsAny<string>(), default)).ReturnsAsync(("text", map));

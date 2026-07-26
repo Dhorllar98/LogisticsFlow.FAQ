@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using LogisticsFlow.Domain.Exceptions;
 
@@ -54,7 +55,19 @@ public class GlobalExceptionMiddleware
                 (HttpStatusCode.GatewayTimeout, "The AI provider did not respond in time."),
 
             LlmInvalidResponseException =>
-                (HttpStatusCode.BadGateway, "The AI provider returned an unexpected response."),  
+                (HttpStatusCode.BadGateway, "The AI provider returned an unexpected response."),
+
+            // RESOLVED: a raw connection-level failure (e.g. a dropped
+            // network mid-request) surfaces as HttpRequestException from
+            // HttpClient itself, before it ever reaches one of our typed
+            // LlmProviderException subtypes. Previously fell through to
+            // the generic 500 catch-all - confirmed during live Gemini/
+            // Claude comparison testing when a transient network drop
+            // produced two consecutive unmapped 500s. Mapped to 502 to
+            // match LlmInvalidResponseException's semantics: the upstream
+            // provider connection itself failed, not our own logic.
+            HttpRequestException =>
+                (HttpStatusCode.BadGateway, "Could not reach the AI provider. Please try again shortly."),
 
             BusinessRuleException =>
                 (HttpStatusCode.UnprocessableEntity, exception.Message),
