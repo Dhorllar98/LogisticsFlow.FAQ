@@ -23,6 +23,22 @@ requirement.
 - Rate limiting: 20 requests/IP/minute on /api/faq/ask
 - CORS: named policy — Vercel production domain + localhost dev
 
+## Multi-Provider Support: Gemini
+
+`GeminiApiClient : ILlmClient` added as a second manually-selectable
+provider alongside Claude, selected via the existing `ActiveProvider`
+config switch — the same mechanism already used for Ollama. This is
+manual provider selection for comparison/flexibility, not automatic
+cross-provider failover; building real Polly-based failover between
+providers would be new, separately-scoped work requiring its own design
+lock, not adopted here.
+
+Also closed in this pass: `HttpRequestException` (raw connection
+failures at the HttpClient layer, occurring before any typed
+`LlmProviderException` subtype is thrown) is now mapped to 502 in
+`GlobalExceptionMiddleware`, previously falling through to the generic
+500 catch-all.
+
 ## Phase 2 Scope: Quotation Module
 
 ### Decision Lock: Single-Call, Non-Agentic

@@ -48,6 +48,10 @@ rules.
 `LogisticsFlow.Infrastructure` contains:
 
 - `ClaudeApiClient` — typed `HttpClient` implementation of `ILlmClient`
+- `GeminiApiClient` — typed `HttpClient` implementation of `ILlmClient` for
+  Google Gemini; added as a second manually-selectable provider (via the
+  `ActiveProvider` switch), not automatic failover — a genuine cross-provider
+  failover mechanism would be separate, deliberately-scoped future work
 - `OllamaApiClient` — stub implementation for future Tier 3 local routing
 - `JsonFAQRepository` — loads `data/faq_knowledgebase.json` at startup
 - `FAQCacheService` — `IMemoryCache`-backed response cache

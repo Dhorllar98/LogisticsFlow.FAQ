@@ -181,7 +181,8 @@ and [`docs/deployment.md`](docs/deployment.md).
 - **Logging**: Serilog
 - **API docs**: Scalar / OpenAPI
 - **Auth**: JWT Bearer
-- **AI provider**: Claude Sonnet 5, behind a provider-agnostic `ILlmClient`
-  interface (local-model routing via Ollama scoped for future Tier 3 work)
+- **AI provider**: Claude Sonnet 5 and Gemini, both behind a provider-agnostic
+  `ILlmClient` interface, manually selectable via `ActiveProvider` (local-model
+  routing via Ollama scoped for future Tier 3 work)
 - **Frontend**: React 18, TypeScript, Tailwind CSS v4, Vite
 - **Testing**: xUnit + Moq, unit/repository/integration layers, 84 tests passing

@@ -67,12 +67,16 @@ check. Development migrations are still run manually via `dotnet ef`.
 | Variable | Purpose |
 |---|---|
 | `ASPNETCORE_ENVIRONMENT` | Set to `Production` on deployed environments |
-| `ActiveProvider` | Provider selection — `Claude` or `Ollama` |
+| `ActiveProvider` | Provider selection — `Claude`, `Gemini`, or `Ollama` |
 | `Providers__Claude__ApiKey` | Claude API authentication key |
 | `Providers__Claude__BaseUrl` | Claude API endpoint URL |
 | `Providers__Claude__Model` | Model identifier — verify this matches the intended model before each deploy; a stale value here silently calls the wrong model with no error |
 | `Providers__Claude__AnthropicVersion` | Anthropic API version header |
 | `Providers__Claude__MaxTokens` | Max tokens per AI call |
+| `Providers__Gemini__ApiKey` | Gemini API authentication key |
+| `Providers__Gemini__BaseUrl` | Gemini API endpoint URL |
+| `Providers__Gemini__Model` | Model identifier — verify against Google's current stable model ID before each deploy |
+| `Providers__Gemini__MaxTokens` | Max tokens per AI call |
 | `Jwt__Issuer` | JWT issuer identifier |
 | `Jwt__Audience` | JWT audience identifier |
 | `Jwt__AccessTokenExpiryMinutes` | Token lifetime in minutes |

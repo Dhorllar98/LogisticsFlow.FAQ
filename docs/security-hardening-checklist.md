@@ -14,7 +14,7 @@ rows — they do not replace or narrow prior security rules.
 ## 2. AI Call Boundary
 
 - [x] Every AI response is schema-validated before use
-- [ ] Malformed AI output returns 422, not a guessed response
+- [x] Malformed AI output returns 422, not a guessed response
 - [ ] Self-reported model claims are never trusted as a security boundary
 - [ ] `max_tokens` is set explicitly on every AI call
 - [ ] Every AI call has retry, timeout, and circuit-breaker behavior
@@ -84,3 +84,4 @@ Active once a module handles Tier 2 or Tier 3 data.
 | Phase 3.5: Risk Assessment | 1, 2, 3, 4, 5, 6, 7, 8 | Live on Render | Reviewed for SK adoption at kickoff, found non-agentic (deterministic data pipeline, no dynamic tool selection) — SK deferred to Phase 4. Aggregate-only lane comparison: pooled, depersonalized statistics across all clients on a lane, grouped by coarse region (never exact address), minimum sample size of 5 before surfacing an average. Risk level computed deterministically in C#, never AI-decided. No new Tier 2 fields; new Tier 1 derived fields only (region, aggregate stats). 84 tests passing project-wide. |
 | HTTP Security Headers | 8 | Live on Render | Closed - was the one open item carried from Phase 3's original tech-debt review through Phase 3.5. `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` added via dedicated middleware registered immediately after global exception handling. Confirmed present on a live production response. |
 | Phase 4: Booking | TBD at kickoff | Planned | Agentic workflow; genuine dynamic tool selection (carrier/date/pricing fallback), Infinite Loop Guard and tool-output trust controls become active for the first time |
+| Multi-provider: Gemini | 1, 2 | Live on Render | Second manually-selectable provider (`GeminiApiClient`), same resilience posture as Claude (timeout, 429/error handling, structured logging). `HttpRequestException` (raw connection failures) mapped to 502 in `GlobalExceptionMiddleware`, previously fell through to the generic 500 catch-all. |
