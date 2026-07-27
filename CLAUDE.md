@@ -144,7 +144,7 @@ HTTP security headers remain the one open item from Phase 3's original
 tech-debt list. It has no coupling to Phase 3.5's scope and is logged
 for its own dedicated fix, not treated as phase-blocking.
 
-### Phase 3.5 (Planned, Not Yet Scoped for Implementation)
+### Phase 3.5 (Completed — SK Review Confirmed at Kickoff)
 Delay-risk assessment: lookup → historical-lane transit comparison →
 risk flag → suggested action.
 
@@ -165,8 +165,9 @@ Standing Security Instruction. That is the first phase with an actual
 branching agentic decision (carrier/date/pricing fallback logic), so
 it is the first phase where SK earns its place.
 
-Full Tier/HTTP contract declarations for 3.5 are below. Layer-by-layer
-implementation plan is finalized separately before code is written.
+Full Tier/HTTP contract declarations and the layer-by-layer
+implementation plan for 3.5 are documented below, in the "Phase 3.5
+Scope" section — both fully implemented and live on Render.
 
 ### Tier 2 Field Declaration (binding — see docs/data-classification.md)
 The following fields are Tier 2 and MUST be redacted via Presidio before

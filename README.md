@@ -24,6 +24,16 @@ Quotation, Tracking, and Risk Assessment — are live and fully database-backed,
 with a full frontend UI for all four (FAQ, Tracking, Risk Assessment,
 Quotation) reachable via the top navigation once logged in.
 
+## Requesting Demo Access
+
+FAQ is open and unauthenticated — try it directly at the link above.
+Tracking, Risk Assessment, and Quotation require account credentials
+(JWT-based auth), which aren't published publicly to avoid unmetered
+use of paid AI API calls. Reach out and I'll provide demo credentials:
+
+- LinkedIn: [linkedin.com/in/dhorllar98](https://www.linkedin.com/in/dhorllar98/)
+- Email: Dhorllar98@gmail.com
+
 ## Verified Smoke Test
 
 ```json
