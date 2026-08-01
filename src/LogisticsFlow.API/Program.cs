@@ -1,4 +1,4 @@
-using LogisticsFlow.API.Extensions;
+﻿using LogisticsFlow.API.Extensions;
 using LogisticsFlow.API.Middleware;
 using LogisticsFlow.Application;
 using LogisticsFlow.Infrastructure;
@@ -89,6 +89,9 @@ app.UseSecurityHeaders();
 
 app.MapOpenApi();
 app.MapScalarApiReference();
+
+
+app.MapGet("/", () => Results.Redirect("/scalar/v1"));
 
 app.UseHttpsRedirection();
 app.UseCors(CorsExtensions.PolicyName);
