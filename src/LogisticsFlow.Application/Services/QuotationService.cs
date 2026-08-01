@@ -1,4 +1,4 @@
-using FluentValidation;
+﻿using FluentValidation;
 using LogisticsFlow.Application.DTOs;
 using LogisticsFlow.Application.Interfaces;
 using LogisticsFlow.Application.Prompts;
@@ -143,7 +143,12 @@ public class QuotationService : IQuotationService
             $"Company: {client.CompanyName}",
             $"Origin: {rate.OriginAddress}",
             $"Destination: {rate.DestinationAddress}",
-            $"Rate: {rate.NegotiatedRate:C}"
+            // Was {rate.NegotiatedRate:C}, which falls back to ambient
+            // CurrentCulture. Render's Linux container resolves that to
+            // invariant culture, whose CurrencySymbol is the generic
+            // placeholder (¤) rather than a real symbol. N2 plus a literal
+            // $ makes this deterministic regardless of runtime culture.
+            $"Rate: ${rate.NegotiatedRate:N2}"
         };
 
         if (!string.IsNullOrWhiteSpace(rate.SpecialHandlingInstructions))
