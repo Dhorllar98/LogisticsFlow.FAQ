@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using LogisticsFlow.Domain.Entities;
@@ -16,12 +16,6 @@ public class ClaudeApiClient : ILlmClient
     private readonly ClaudeSettings _settings;
     private readonly ILogger<ClaudeApiClient> _logger;
 
-    // Explicit call-level timeout, independent of whatever HttpClient.Timeout
-    // is or isn't configured in DI. Was a known gap (security checklist
-    // section 2: "Every outbound AI HttpClient call has an explicit timeout"
-    // was unchecked) and the most likely cause of an observed endless-
-    // loading demo failure - a hung response with no timeout never errors,
-    // it just waits forever with no feedback to the caller.
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(30);
 
     public ClaudeApiClient(
@@ -47,7 +41,8 @@ public class ClaudeApiClient : ILlmClient
                 .Select(m => new ClaudeMessage(
                     m.Role == ChatRole.User ? "user" : "assistant",
                     m.Content))
-                .ToList());
+                .ToList(),
+            OutputConfig: new ClaudeOutputConfig(_settings.Effort));
 
         using var request = new HttpRequestMessage(HttpMethod.Post, _settings.BaseUrl)
         {
@@ -66,10 +61,6 @@ public class ClaudeApiClient : ILlmClient
         }
         catch (TaskCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
-            // Distinguishes "our own timeout fired" from "the caller cancelled
-            // the request" - both throw TaskCanceledException, but only the
-            // caller-cancellation case should skip the timeout-specific log
-            // and exception below.
             _logger.LogError(ex, "Claude API call timed out after {TimeoutSeconds}s.", RequestTimeout.TotalSeconds);
             throw new LlmTimeoutException("The AI provider did not respond in time.", ex);
         }
@@ -110,7 +101,11 @@ public class ClaudeApiClient : ILlmClient
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("max_tokens")] int MaxTokens,
         [property: JsonPropertyName("system")] string System,
-        [property: JsonPropertyName("messages")] List<ClaudeMessage> Messages);
+        [property: JsonPropertyName("messages")] List<ClaudeMessage> Messages,
+        [property: JsonPropertyName("output_config")] ClaudeOutputConfig OutputConfig);
+
+    private sealed record ClaudeOutputConfig(
+        [property: JsonPropertyName("effort")] string Effort);
 
     private sealed record ClaudeMessage(
         [property: JsonPropertyName("role")] string Role,
