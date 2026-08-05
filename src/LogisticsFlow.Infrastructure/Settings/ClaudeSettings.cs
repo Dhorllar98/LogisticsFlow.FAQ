@@ -7,4 +7,5 @@ public class ClaudeSettings
     public string Model { get; set; } = string.Empty;
     public string AnthropicVersion { get; set; } = string.Empty;
     public int MaxTokens { get; set; } = 1024;
+    public string Effort { get; set; } = "medium";
 }
